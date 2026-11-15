@@ -51,7 +51,7 @@ class CertificateExtractorTest {
         when(mockCert.getSigAlgName()).thenReturn("SHA256withRSA");
         when(mockCert.getPublicKey()).thenReturn(mockRsaKey);
         when(mockRsaKey.getAlgorithm()).thenReturn("RSA");
-        when(mockRsaKey.getModulus()).thenReturn(new BigInteger(2048, new java.util.Random()));
+        when(mockRsaKey.getModulus()).thenReturn(BigInteger.ONE.shiftLeft(2047));
         when(mockCert.getEncoded()).thenReturn(new byte[]{0x01, 0x02, 0x03, 0x04});
 
         CertificateDetails details = extractor.extractDetails(mockCert, 10L, 1L, 2);

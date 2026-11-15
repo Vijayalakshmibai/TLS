@@ -16,8 +16,8 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 | **Phase 5** | Authentication & Dashboard Shell | ✅ Completed | Admin registration, BCrypt authentication, protected routes |
 | **Phase 6** | Module 1: Website Inventory | ✅ Completed | Domain/URL CRUD, validation, and anti-SSRF protections |
 | **Phase 7** | Module 2: TLS Certificate Inspection Engine | ✅ Completed | JSSE TLS sockets, X.509 parsing, protocol & cipher probe |
-| **Phase 8** | Module 3: Expiry & Risk Scoring Engine | 🔄 In Progress | Rules engine, expiry calculation, transparent scoring |
-| **Phase 9** | Module 4: Reporting & Alert Generation | ⏳ Pending | PDF (OpenPDF), Excel (Apache POI), Email & Scheduler |
+| **Phase 8** | Module 3: Expiry & Risk Scoring Engine | ✅ Completed | Rules engine, expiry calculation, transparent scoring |
+| **Phase 9** | Module 4: Reporting & Alert Generation | 🔄 In Progress | PDF (OpenPDF), Excel (Apache POI), Email & Scheduler |
 | **Phase 10**| Integrated Workflow & End-to-End Testing | ⏳ Pending | Full user flow: Add -> Scan -> Score -> Alert -> Report |
 | **Phase 11**| Security Review & Hardening | ⏳ Pending | SSRF tests, DNS rebinding, timeout & input sanitization |
 | **Phase 12**| Deployment, Handover & Documentation | ⏳ Pending | Production config, migrations, user guide, final verification |
@@ -80,11 +80,12 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Expose REST endpoints via `TLSInspectionController`.
 
 ### Phase 8: Module 3 - Certificate Expiry & Risk Detection
-- [ ] Implement `ExpiryChecker` with UTC-based date calculation and category thresholds.
-- [ ] Implement extensible `RiskRule` interface and concrete rule implementations.
-- [ ] Implement `RiskScoringService` (0-100 score, severity mapping: Low, Medium, High, Critical).
-- [ ] Persist `SecurityFinding` and `RiskAssessment`.
-- [ ] Build `RiskAnalysisView` with vulnerability breakdown and remediation guidance.
+- [x] Implement `ExpiryChecker` with UTC-based date calculation and category thresholds.
+- [x] Implement extensible `RiskRule` interface and concrete rule implementations.
+- [x] Implement `RiskScoringService` (0-100 score, severity mapping: Low, Medium, High, Critical).
+- [x] Persist `SecurityFinding` and `RiskAssessment`.
+- [x] Build `RiskAnalysisView` with vulnerability breakdown and remediation guidance.
+- [x] Expose REST endpoints via `RiskController`.
 
 ### Phase 9: Module 4 - Reporting & Alert Generation
 - [ ] Implement `PdfReportService` using OpenPDF for comprehensive audit reports.

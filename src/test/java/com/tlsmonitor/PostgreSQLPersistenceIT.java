@@ -8,6 +8,10 @@ import com.tlsmonitor.inspection.repository.CertificateDetailsRepository;
 import com.tlsmonitor.inspection.repository.TLSScanResultRepository;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.repository.WebsiteRepository;
+import com.tlsmonitor.risk.entity.RiskAssessment;
+import com.tlsmonitor.risk.entity.SecurityFinding;
+import com.tlsmonitor.risk.repository.RiskAssessmentRepository;
+import com.tlsmonitor.risk.repository.SecurityFindingRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,6 +44,12 @@ class PostgreSQLPersistenceIT {
 
     @Autowired
     private CertificateDetailsRepository certificateDetailsRepository;
+
+    @Autowired
+    private RiskAssessmentRepository riskAssessmentRepository;
+
+    @Autowired
+    private SecurityFindingRepository securityFindingRepository;
 
     @Test
     void testPostgreSQLConnectionAndPersistence() {
@@ -93,5 +103,21 @@ class PostgreSQLPersistenceIT {
         Optional<CertificateDetails> fetched = certificateDetailsRepository.findByScanId(savedScan.getId());
         assertTrue(fetched.isPresent());
         assertEquals("CN=example.com", fetched.get().getSubject());
+    }
+
+    @Test
+    void testRiskAssessmentAndFindingsPersistenceInPostgreSQL() {
+        RiskAssessment assessment = new RiskAssessment(100L, 1L, 40, "HIGH", 1);
+        RiskAssessment saved = riskAssessmentRepository.save(assessment);
+        assertNotNull(saved.getId());
+
+        SecurityFinding finding = new SecurityFinding(100L, 1L, "EXP_01", "Cert Expiring", "Details", "HIGH", 40, "Ev", "Rec");
+        SecurityFinding savedFinding = securityFindingRepository.save(finding);
+        assertNotNull(savedFinding.getId());
+
+        Optional<RiskAssessment> fetched = riskAssessmentRepository.findById(saved.getId());
+        assertTrue(fetched.isPresent());
+        assertEquals(40, fetched.get().getTotalScore());
+        assertEquals("HIGH", fetched.get().getRiskLevel());
     }
 }
