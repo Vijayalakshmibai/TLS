@@ -45,3 +45,7 @@ data/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+### Frontend Generated ###
+src/main/frontend/generated/
+frontend/generated/

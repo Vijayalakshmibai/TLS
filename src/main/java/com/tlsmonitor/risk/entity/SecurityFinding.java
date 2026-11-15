@@ -23,7 +23,7 @@ public class SecurityFinding {
     @Column(nullable = false, length = 255)
     private String title;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(nullable = false, length = 30)
@@ -31,10 +31,10 @@ public class SecurityFinding {
 
     private int points; // Points contributing to risk score
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String evidence;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String recommendation;
 
     private LocalDateTime createdAt;
