@@ -55,7 +55,10 @@ public class ReportController {
     }
 
     @GetMapping("/reports/{websiteId}/pdf")
-    public ResponseEntity<byte[]> downloadPdfReport(@PathVariable Long websiteId) throws Exception {
+    public ResponseEntity<byte[]> downloadPdfReport(
+            @PathVariable Long websiteId,
+            @RequestParam(name = "inline", defaultValue = "false") boolean inline) throws Exception {
+
         Website website = websiteService.getWebsiteById(websiteId);
         TLSScanResult scan = scanRepository.findFirstByWebsiteIdOrderByScannedAtDesc(websiteId).orElse(null);
         CertificateDetails cert = certRepository.findFirstByWebsiteIdOrderByIdDesc(websiteId).orElse(null);
@@ -64,8 +67,10 @@ public class ReportController {
 
         byte[] pdfBytes = pdfReportService.generateWebsiteReport(website, scan, cert, risk, findings);
 
+        String disposition = inline ? "inline" : "attachment";
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"TLS_Security_Report_" + website.getDomain() + ".pdf\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition + "; filename=\"TLS_Security_Report_" + website.getDomain() + ".pdf\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdfBytes);
     }

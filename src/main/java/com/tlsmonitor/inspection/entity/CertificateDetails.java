@@ -17,10 +17,10 @@ public class CertificateDetails {
     @Column(nullable = false)
     private Long websiteId;
 
-    @Column(length = 500)
+    @Column(columnDefinition = "TEXT")
     private String subject;
 
-    @Column(length = 500)
+    @Column(columnDefinition = "TEXT")
     private String issuer;
 
     @Column(length = 100)
@@ -44,7 +44,7 @@ public class CertificateDetails {
     @Column(length = 100)
     private String sha256Fingerprint;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String subjectAlternativeNames;
 
     private boolean selfSigned;

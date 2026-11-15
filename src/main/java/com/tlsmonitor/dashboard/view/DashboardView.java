@@ -169,17 +169,22 @@ public class DashboardView extends VerticalLayout {
                 : "Not Scanned Yet").setHeader("Last Scanned").setAutoWidth(true).setSortable(true);
 
         grid.addComponentColumn(w -> {
-            Button pdfBtn = new Button("Audit PDF", VaadinIcon.FILE_TEXT_O.create(), e -> {
-                UI.getCurrent().getPage().open("/api/reports/" + w.getId() + "/pdf", "_blank");
+            Button viewPdfBtn = new Button("View PDF", VaadinIcon.EYE.create(), e -> {
+                UI.getCurrent().getPage().open("/api/reports/" + w.getId() + "/pdf?inline=true", "_blank");
             });
-            pdfBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+            viewPdfBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_PRIMARY);
+
+            Button downloadPdfBtn = new Button("Download", VaadinIcon.DOWNLOAD.create(), e -> {
+                UI.getCurrent().getPage().open("/api/reports/" + w.getId() + "/pdf?inline=false", "_blank");
+            });
+            downloadPdfBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
 
             Button inspectBtn = new Button("Inspect", VaadinIcon.SEARCH.create(), e -> {
                 UI.getCurrent().navigate("inspection?websiteId=" + w.getId());
             });
-            inspectBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_PRIMARY);
+            inspectBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_CONTRAST);
 
-            HorizontalLayout actions = new HorizontalLayout(pdfBtn, inspectBtn);
+            HorizontalLayout actions = new HorizontalLayout(viewPdfBtn, downloadPdfBtn, inspectBtn);
             actions.setSpacing(true);
             return actions;
         }).setHeader("Quick Actions").setAutoWidth(true);

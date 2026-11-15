@@ -30,10 +30,10 @@ public class TLSScanResult {
     private boolean hostnameValid;
     private boolean trustChainValid;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String trustError;
 
-    @Column(length = 255)
+    @Column(columnDefinition = "TEXT")
     private String supportedProtocols; // e.g. TLSv1.2, TLSv1.3
 
     private boolean weakProtocolDetected; // true if TLS 1.0 or 1.1 enabled
