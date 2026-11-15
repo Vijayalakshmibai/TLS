@@ -27,4 +27,23 @@ public class RiskScoringService {
             return "LOW";
         }
     }
+
+    public String determineRiskLevel(int score, List<SecurityFinding> findings) {
+        String baseLevel = determineRiskLevel(score);
+        if (findings == null || findings.isEmpty()) {
+            return baseLevel;
+        }
+
+        boolean hasCritical = findings.stream().anyMatch(f -> "CRITICAL".equalsIgnoreCase(f.getSeverity()));
+        if (hasCritical) {
+            return "CRITICAL";
+        }
+
+        boolean hasHigh = findings.stream().anyMatch(f -> "HIGH".equalsIgnoreCase(f.getSeverity()));
+        if (hasHigh && ("LOW".equalsIgnoreCase(baseLevel) || "MEDIUM".equalsIgnoreCase(baseLevel))) {
+            return "HIGH";
+        }
+
+        return baseLevel;
+    }
 }

@@ -19,8 +19,8 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 | **Phase 8** | Module 3: Expiry & Risk Scoring Engine | ✅ Completed | Rules engine, expiry calculation, transparent scoring |
 | **Phase 9** | Module 4: Reporting & Alert Generation | ✅ Completed | PDF (OpenPDF), Excel (Apache POI), Email & Scheduler |
 | **Phase 10**| Integrated Workflow & End-to-End Testing | ✅ Completed | Full user flow: Add -> Scan -> Score -> Alert -> Report |
-| **Phase 11**| Security Review & Hardening | 🔄 In Progress | SSRF tests, DNS rebinding, timeout & input sanitization |
-| **Phase 12**| Deployment, Handover & Documentation | ⏳ Pending | Production config, migrations, user guide, final verification |
+| **Phase 11**| Security Review & Hardening | ✅ Completed | SSRF tests, DNS rebinding, timeout & input sanitization |
+| **Phase 12**| Deployment, Handover & Documentation | ✅ Completed | Production config, standalone JAR, user guide, final verification |
 
 ---
 
@@ -100,11 +100,12 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Verify manual export of PDF and Excel reports.
 
 ### Phase 11: Security Review & Hardening
-- [ ] Audit anti-SSRF protections against IPv4/IPv6 private ranges and DNS rebinding.
-- [ ] Verify rate limiting and timeout configurations.
-- [ ] Verify input sanitization and secure error handling.
+- [x] Audit anti-SSRF protections against IPv4/IPv6 private ranges and DNS rebinding.
+- [x] Verify rate limiting and timeout configurations.
+- [x] Verify input sanitization and secure error handling.
+- [x] Implement severity floor elevation and calibrate risk rules.
 
 ### Phase 12: Deployment & Final Handover
-- [ ] Setup production profile and environment variable guidelines.
-- [ ] Verify Maven production build (`mvn clean package`).
-- [ ] Create comprehensive `README.md`, architecture docs, and database schema documentation.
+- [x] Setup production profile (`application-prod.properties`) and environment variable guidelines.
+- [x] Verify Maven production build (`mvn clean package`) and generate standalone executable JAR.
+- [x] Create comprehensive `README.md`, architecture docs, and database schema documentation.

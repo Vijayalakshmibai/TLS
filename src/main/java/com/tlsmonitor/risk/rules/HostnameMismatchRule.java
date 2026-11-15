@@ -40,7 +40,7 @@ public class HostnameMismatchRule implements RiskRule {
                     scanId, websiteId, "HOST_MISMATCH",
                     "Certificate Hostname Mismatch",
                     "The certificate presented by the server does not match the requested hostname '" + scan.getDomain() + "'. This indicates potential misconfiguration or Man-in-the-Middle risk.",
-                    "HIGH", 30,
+                    "HIGH", 40,
                     "Target Domain: " + scan.getDomain() + " | Subject: " + certSubject + " | SANs: " + sans,
                     "Re-issue certificate to include '" + scan.getDomain() + "' in the Subject Alternative Names (SAN)."
             ));
