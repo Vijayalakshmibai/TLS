@@ -14,8 +14,8 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 | **Phase 3** | Database Connectivity & Persistence | ✅ Completed | PostgreSQL connection and JPA test pass |
 | **Phase 4** | Package Structure, Common Models & Error Handling | ✅ Completed | Clean architecture, DTOs, domain models, and error handling |
 | **Phase 5** | Authentication & Dashboard Shell | ✅ Completed | Admin registration, BCrypt authentication, protected routes |
-| **Phase 6** | Module 1: Website Inventory | 🔄 In Progress | Domain/URL CRUD, validation, and anti-SSRF protections |
-| **Phase 7** | Module 2: TLS Certificate Inspection Engine | ⏳ Pending | JSSE TLS sockets, X.509 parsing, protocol & cipher probe |
+| **Phase 6** | Module 1: Website Inventory | ✅ Completed | Domain/URL CRUD, validation, and anti-SSRF protections |
+| **Phase 7** | Module 2: TLS Certificate Inspection Engine | 🔄 In Progress | JSSE TLS sockets, X.509 parsing, protocol & cipher probe |
 | **Phase 8** | Module 3: Expiry & Risk Scoring Engine | ⏳ Pending | Rules engine, expiry calculation, transparent scoring |
 | **Phase 9** | Module 4: Reporting & Alert Generation | ⏳ Pending | PDF (OpenPDF), Excel (Apache POI), Email & Scheduler |
 | **Phase 10**| Integrated Workflow & End-to-End Testing | ⏳ Pending | Full user flow: Add -> Scan -> Score -> Alert -> Report |
@@ -64,10 +64,11 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Build `DashboardView` with statistical cards and summary tables.
 
 ### Phase 6: Module 1 - Website Inventory
-- [ ] Create `Website` entity and `WebsiteRepository`.
-- [ ] Implement `WebsiteValidationService` with SSRF blocking (disallowing private IPs, loopback, link-local, cloud metadata).
-- [ ] Implement `WebsiteService` for CRUD operations.
-- [ ] Build `WebsiteView` in Vaadin (Add, Edit, Delete, Search, and Scan trigger).
+- [x] Create `Website` entity and `WebsiteRepository`.
+- [x] Implement `WebsiteValidationService` with SSRF blocking (disallowing private IPs, loopback, link-local, cloud metadata).
+- [x] Implement `WebsiteService` for CRUD operations.
+- [x] Build `WebsiteView` in Vaadin (Add, Edit, Delete, Search, and Scan trigger).
+- [x] Expose REST endpoints via `WebsiteController`.
 
 ### Phase 7: Module 2 - TLS Certificate & Configuration Inspection
 - [ ] Build `TLSInspector` using Java JSSE (`SSLSocketFactory`, `SSLSocket`, `SSLParameters`).
