@@ -1,19 +1,22 @@
 package com.tlsmonitor.dashboard.view;
 
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.ErrorParameter;
+import com.vaadin.flow.router.HasErrorParameter;
 import com.vaadin.flow.router.NotFoundException;
-import com.vaadin.flow.router.RouteNotFoundError;
+import com.vaadin.flow.router.ParentLayout;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import jakarta.servlet.http.HttpServletResponse;
 
 @AnonymousAllowed
-public class CustomRouteNotFoundError extends RouteNotFoundError {
+@ParentLayout(MainLayout.class)
+public class CustomRouteNotFoundError extends Div implements HasErrorParameter<NotFoundException> {
 
     @Override
     public int setErrorParameter(BeforeEnterEvent event, ErrorParameter<NotFoundException> parameter) {
-        // Automatically redirect unknown routes (e.g. tracking extensions, invalid URLs) to the dashboard
-        event.forwardTo("");
+        // Forward any unknown or unmatched route directly to Dashboard
+        event.forwardTo(DashboardView.class);
         return HttpServletResponse.SC_OK;
     }
 }
