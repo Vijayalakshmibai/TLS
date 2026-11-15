@@ -8,9 +8,9 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 
 | Phase | Description | Status | Deliverable Gate |
 |---|---|---|---|
-| **Phase 0** | Requirement Confirmation & Planning | 🔄 In Progress | Requirements, safe scan policy, and repo baseline documented |
-| **Phase 1** | Verified Development Environment | 🔄 In Progress | JDK 21/25, Maven, PostgreSQL, and Git verified |
-| **Phase 2** | Spring Boot + Vaadin Runnable Baseline | ⏳ Pending | Clean project compiles, starts, and displays Vaadin UI |
+| **Phase 0** | Requirement Confirmation & Planning | ✅ Completed | Requirements, safe scan policy, and repo baseline documented |
+| **Phase 1** | Verified Development Environment | ✅ Completed | JDK 21/25, Maven, PostgreSQL, and Git verified |
+| **Phase 2** | Spring Boot + Vaadin Runnable Baseline | 🔄 In Progress | Clean project compiles, starts, and displays Vaadin UI |
 | **Phase 3** | Database Connectivity & Persistence | ⏳ Pending | PostgreSQL connection and JPA test pass |
 | **Phase 4** | Package Structure, Common Models & Error Handling | ⏳ Pending | Clean architecture, DTOs, domain models, and error handling |
 | **Phase 5** | Authentication & Dashboard Shell | ⏳ Pending | Admin registration, BCrypt authentication, protected routes |
@@ -38,8 +38,8 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Java JDK verified (OpenJDK 21.0.12.1 LTS).
 - [x] Apache Maven 3.9.9 installed and verified on PATH.
 - [x] Git verified (`git version 2.55.0.windows.3`).
-- [ ] PostgreSQL 17 downloaded, initialized, and verified running on port 5432.
-- [ ] Create database `tls_monitoring_db`.
+- [x] PostgreSQL 17 downloaded, initialized, and verified running on port 5432.
+- [x] Create database `tls_monitoring_db`.
 
 ### Phase 2: Application Skeleton & Runnable Baseline
 - [ ] Generate Spring Boot 3.4 / Vaadin 24.x application with Maven wrapper (`pom.xml`).
