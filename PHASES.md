@@ -10,8 +10,8 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 |---|---|---|---|
 | **Phase 0** | Requirement Confirmation & Planning | ✅ Completed | Requirements, safe scan policy, and repo baseline documented |
 | **Phase 1** | Verified Development Environment | ✅ Completed | JDK 21/25, Maven, PostgreSQL, and Git verified |
-| **Phase 2** | Spring Boot + Vaadin Runnable Baseline | 🔄 In Progress | Clean project compiles, starts, and displays Vaadin UI |
-| **Phase 3** | Database Connectivity & Persistence | ⏳ Pending | PostgreSQL connection and JPA test pass |
+| **Phase 2** | Spring Boot + Vaadin Runnable Baseline | ✅ Completed | Clean project compiles, starts, and displays Vaadin UI |
+| **Phase 3** | Database Connectivity & Persistence | 🔄 In Progress | PostgreSQL connection and JPA test pass |
 | **Phase 4** | Package Structure, Common Models & Error Handling | ⏳ Pending | Clean architecture, DTOs, domain models, and error handling |
 | **Phase 5** | Authentication & Dashboard Shell | ⏳ Pending | Admin registration, BCrypt authentication, protected routes |
 | **Phase 6** | Module 1: Website Inventory | ⏳ Pending | Domain/URL CRUD, validation, and anti-SSRF protections |
@@ -42,10 +42,10 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Create database `tls_monitoring_db`.
 
 ### Phase 2: Application Skeleton & Runnable Baseline
-- [ ] Generate Spring Boot 3.4 / Vaadin 24.x application with Maven wrapper (`pom.xml`).
-- [ ] Add dependencies: Spring Web, Spring Security, Spring Data JPA, Vaadin, OpenPDF, Apache POI, Jakarta Validation, PostgreSQL Driver.
-- [ ] Verify clean compilation (`mvn clean compile`).
-- [ ] Verify baseline launch and initial Vaadin view.
+- [x] Generate Spring Boot 3.4 / Vaadin 24.x application with Maven wrapper (`pom.xml`).
+- [x] Add dependencies: Spring Web, Spring Security, Spring Data JPA, Vaadin, OpenPDF, Apache POI, Jakarta Validation, PostgreSQL Driver.
+- [x] Verify clean compilation (`mvn clean compile`).
+- [x] Verify baseline launch and initial Vaadin view.
 
 ### Phase 3: Database Connectivity & JPA Persistence
 - [ ] Configure `application.properties` with environment variables for database credentials.
