@@ -1,6 +1,7 @@
 package com.tlsmonitor.inventory.view;
 
 import com.tlsmonitor.dashboard.view.MainLayout;
+import com.tlsmonitor.inspection.service.ScanOrchestratorService;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.service.WebsiteService;
 import com.vaadin.flow.component.UI;
@@ -34,12 +35,14 @@ import java.util.List;
 public class WebsiteView extends VerticalLayout {
 
     private final WebsiteService websiteService;
+    private final ScanOrchestratorService scanOrchestratorService;
     private final Grid<Website> grid = new Grid<>(Website.class, false);
     private final TextField filterText = new TextField();
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    public WebsiteView(WebsiteService websiteService) {
+    public WebsiteView(WebsiteService websiteService, ScanOrchestratorService scanOrchestratorService) {
         this.websiteService = websiteService;
+        this.scanOrchestratorService = scanOrchestratorService;
         setSizeFull();
         setPadding(true);
         setSpacing(true);
@@ -96,9 +99,17 @@ public class WebsiteView extends VerticalLayout {
 
         grid.addComponentColumn(website -> {
             Button scanBtn = new Button("Scan", VaadinIcon.SEARCH.create(), e -> {
-                Notification.show("Starting inspection for " + website.getDomain(), 3000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_PRIMARY);
-                UI.getCurrent().navigate("inspection?websiteId=" + website.getId());
+                try {
+                    Notification.show("Starting inspection for " + website.getDomain() + "...", 2000, Notification.Position.TOP_CENTER);
+                    ScanOrchestratorService.ScanPipelineResult result = scanOrchestratorService.executeScanPipeline(website.getId());
+                    Notification.show("Scan complete for " + website.getDomain() + "! Risk Score: "
+                            + result.riskAssessment().getTotalScore() + "/100 (" + result.riskAssessment().getRiskLevel() + ")",
+                            4000, Notification.Position.TOP_CENTER).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    updateList();
+                } catch (Exception ex) {
+                    Notification.show("Scan failed for " + website.getDomain() + ": " + ex.getMessage(),
+                            5000, Notification.Position.TOP_CENTER).addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
             });
             scanBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_SUCCESS);
 

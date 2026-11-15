@@ -18,8 +18,8 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 | **Phase 7** | Module 2: TLS Certificate Inspection Engine | ✅ Completed | JSSE TLS sockets, X.509 parsing, protocol & cipher probe |
 | **Phase 8** | Module 3: Expiry & Risk Scoring Engine | ✅ Completed | Rules engine, expiry calculation, transparent scoring |
 | **Phase 9** | Module 4: Reporting & Alert Generation | ✅ Completed | PDF (OpenPDF), Excel (Apache POI), Email & Scheduler |
-| **Phase 10**| Integrated Workflow & End-to-End Testing | 🔄 In Progress | Full user flow: Add -> Scan -> Score -> Alert -> Report |
-| **Phase 11**| Security Review & Hardening | ⏳ Pending | SSRF tests, DNS rebinding, timeout & input sanitization |
+| **Phase 10**| Integrated Workflow & End-to-End Testing | ✅ Completed | Full user flow: Add -> Scan -> Score -> Alert -> Report |
+| **Phase 11**| Security Review & Hardening | 🔄 In Progress | SSRF tests, DNS rebinding, timeout & input sanitization |
 | **Phase 12**| Deployment, Handover & Documentation | ⏳ Pending | Production config, migrations, user guide, final verification |
 
 ---
@@ -95,9 +95,9 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Build `ReportsView` and `AlertsView` in Vaadin.
 
 ### Phase 10: System Integration & Workflow Verification
-- [ ] Connect inventory "Scan Now" button with asynchronous scan pipeline.
-- [ ] Verify automatic chain: Scan -> Certificate Parsing -> Risk Assessment -> Alert Generation -> Dashboard Update.
-- [ ] Verify manual export of PDF and Excel reports.
+- [x] Connect inventory "Scan Now" button with asynchronous scan pipeline.
+- [x] Verify automatic chain: Scan -> Certificate Parsing -> Risk Assessment -> Alert Generation -> Dashboard Update.
+- [x] Verify manual export of PDF and Excel reports.
 
 ### Phase 11: Security Review & Hardening
 - [ ] Audit anti-SSRF protections against IPv4/IPv6 private ranges and DNS rebinding.

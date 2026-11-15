@@ -3,8 +3,8 @@ package com.tlsmonitor.inspection.view;
 import com.tlsmonitor.dashboard.view.MainLayout;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.service.ScanOrchestratorService;
 import com.tlsmonitor.inspection.service.TLSInspectionService;
-import com.tlsmonitor.inspection.tls.TLSInspector;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.service.WebsiteService;
 import com.vaadin.flow.component.button.Button;
@@ -31,6 +31,7 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
     private final WebsiteService websiteService;
     private final TLSInspectionService inspectionService;
+    private final ScanOrchestratorService scanOrchestratorService;
 
     private final Select<Website> websiteSelect = new Select<>();
     private final Button scanBtn = new Button("Inspect TLS Configuration", VaadinIcon.SEARCH.create());
@@ -39,9 +40,12 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    public TLSInspectionView(WebsiteService websiteService, TLSInspectionService inspectionService) {
+    public TLSInspectionView(WebsiteService websiteService,
+                             TLSInspectionService inspectionService,
+                             ScanOrchestratorService scanOrchestratorService) {
         this.websiteService = websiteService;
         this.inspectionService = inspectionService;
+        this.scanOrchestratorService = scanOrchestratorService;
 
         setSizeFull();
         setPadding(true);
@@ -112,10 +116,11 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
         scanBtn.setText("Inspecting TLS handshake...");
 
         try {
-            TLSInspector.InspectionOutcome outcome = inspectionService.performScan(site.getId());
+            ScanOrchestratorService.ScanPipelineResult outcome = scanOrchestratorService.executeScanPipeline(site.getId());
             displayResults(outcome.scanResult(), outcome.certificateDetails());
             loadWebsiteHistory(site.getId());
-            Notification.show("TLS inspection complete for " + site.getDomain(), 3000, Notification.Position.TOP_CENTER)
+            Notification.show("TLS inspection complete for " + site.getDomain() + " (Risk: " + outcome.riskAssessment().getRiskLevel() + ")",
+                            3000, Notification.Position.TOP_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         } catch (Exception ex) {
             Notification.show("Inspection error: " + ex.getMessage(), 5000, Notification.Position.TOP_CENTER)

@@ -1,15 +1,9 @@
 package com.tlsmonitor.alerts.scheduler;
 
-import com.tlsmonitor.alerts.service.AlertService;
 import com.tlsmonitor.config.AsyncConfig;
-import com.tlsmonitor.inspection.entity.CertificateDetails;
-import com.tlsmonitor.inspection.entity.TLSScanResult;
-import com.tlsmonitor.inspection.service.TLSInspectionService;
-import com.tlsmonitor.inspection.tls.TLSInspector;
+import com.tlsmonitor.inspection.service.ScanOrchestratorService;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.service.WebsiteService;
-import com.tlsmonitor.risk.entity.RiskAssessment;
-import com.tlsmonitor.risk.service.RiskAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,20 +19,14 @@ public class MonitoringScheduler {
     private static final Logger log = LoggerFactory.getLogger(MonitoringScheduler.class);
 
     private final WebsiteService websiteService;
-    private final TLSInspectionService inspectionService;
-    private final RiskAnalyzer riskAnalyzer;
-    private final AlertService alertService;
+    private final ScanOrchestratorService scanOrchestratorService;
     private final Executor scanExecutor;
 
     public MonitoringScheduler(WebsiteService websiteService,
-                               TLSInspectionService inspectionService,
-                               RiskAnalyzer riskAnalyzer,
-                               AlertService alertService,
+                               ScanOrchestratorService scanOrchestratorService,
                                @Qualifier(AsyncConfig.SCAN_EXECUTOR) Executor scanExecutor) {
         this.websiteService = websiteService;
-        this.inspectionService = inspectionService;
-        this.riskAnalyzer = riskAnalyzer;
-        this.alertService = alertService;
+        this.scanOrchestratorService = scanOrchestratorService;
         this.scanExecutor = scanExecutor;
     }
 
@@ -47,7 +35,7 @@ public class MonitoringScheduler {
     public void runScheduledMonitoring() {
         log.info("Starting scheduled TLS certificate & configuration monitoring cycle...");
         List<Website> activeWebsites = websiteService.getAllWebsites().stream()
-                .filter(w -> "ACTIVE".equalsIgnoreCase(w.getStatus()))
+                .filter(w -> !"DISABLED".equalsIgnoreCase(w.getStatus()))
                 .toList();
 
         log.info("Found {} active websites to monitor.", activeWebsites.size());
@@ -64,16 +52,9 @@ public class MonitoringScheduler {
     }
 
     public void processWebsiteScan(Website website) {
-        log.info("Scheduled task: Scanning domain {}", website.getDomain());
-        TLSInspector.InspectionOutcome outcome = inspectionService.performScan(website.getId());
-        TLSScanResult scan = outcome.scanResult();
-        CertificateDetails cert = outcome.certificateDetails();
-
-        RiskAnalyzer.AnalysisResult analysis = riskAnalyzer.analyzeAndPersist(scan, cert);
-        RiskAssessment risk = analysis.assessment();
-
-        alertService.processScanAlerts(website, scan, cert, risk);
+        log.info("Scheduled task: Orchestrating scan for domain {}", website.getDomain());
+        ScanOrchestratorService.ScanPipelineResult result = scanOrchestratorService.executeScanPipeline(website.getId());
         log.info("Scheduled task completed for {}: score={}, findings={}",
-                website.getDomain(), risk.getTotalScore(), analysis.findings().size());
+                website.getDomain(), result.riskAssessment().getTotalScore(), result.findings().size());
     }
 }
