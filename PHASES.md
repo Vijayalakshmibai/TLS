@@ -13,8 +13,8 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 | **Phase 2** | Spring Boot + Vaadin Runnable Baseline | ✅ Completed | Clean project compiles, starts, and displays Vaadin UI |
 | **Phase 3** | Database Connectivity & Persistence | ✅ Completed | PostgreSQL connection and JPA test pass |
 | **Phase 4** | Package Structure, Common Models & Error Handling | ✅ Completed | Clean architecture, DTOs, domain models, and error handling |
-| **Phase 5** | Authentication & Dashboard Shell | 🔄 In Progress | Admin registration, BCrypt authentication, protected routes |
-| **Phase 6** | Module 1: Website Inventory | ⏳ Pending | Domain/URL CRUD, validation, and anti-SSRF protections |
+| **Phase 5** | Authentication & Dashboard Shell | ✅ Completed | Admin registration, BCrypt authentication, protected routes |
+| **Phase 6** | Module 1: Website Inventory | 🔄 In Progress | Domain/URL CRUD, validation, and anti-SSRF protections |
 | **Phase 7** | Module 2: TLS Certificate Inspection Engine | ⏳ Pending | JSSE TLS sockets, X.509 parsing, protocol & cipher probe |
 | **Phase 8** | Module 3: Expiry & Risk Scoring Engine | ⏳ Pending | Rules engine, expiry calculation, transparent scoring |
 | **Phase 9** | Module 4: Reporting & Alert Generation | ⏳ Pending | PDF (OpenPDF), Excel (Apache POI), Email & Scheduler |
@@ -58,10 +58,10 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Configure bounded thread pool executor for background TLS scans.
 
 ### Phase 5: Authentication & Dashboard Shell
-- [ ] Implement `User` entity, `UserRepository`, and `UserService` with BCrypt password hashing.
-- [ ] Setup first-time admin setup flow.
-- [ ] Build Vaadin `LoginView` and `MainLayout` with responsive navigation sidebar.
-- [ ] Build `DashboardView` with statistical cards and summary tables.
+- [x] Implement `User` entity, `UserRepository`, and `UserService` with BCrypt password hashing.
+- [x] Setup first-time admin setup flow.
+- [x] Build Vaadin `LoginView` and `MainLayout` with responsive navigation sidebar.
+- [x] Build `DashboardView` with statistical cards and summary tables.
 
 ### Phase 6: Module 1 - Website Inventory
 - [ ] Create `Website` entity and `WebsiteRepository`.
