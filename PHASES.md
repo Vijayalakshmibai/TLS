@@ -15,8 +15,8 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 | **Phase 4** | Package Structure, Common Models & Error Handling | ✅ Completed | Clean architecture, DTOs, domain models, and error handling |
 | **Phase 5** | Authentication & Dashboard Shell | ✅ Completed | Admin registration, BCrypt authentication, protected routes |
 | **Phase 6** | Module 1: Website Inventory | ✅ Completed | Domain/URL CRUD, validation, and anti-SSRF protections |
-| **Phase 7** | Module 2: TLS Certificate Inspection Engine | 🔄 In Progress | JSSE TLS sockets, X.509 parsing, protocol & cipher probe |
-| **Phase 8** | Module 3: Expiry & Risk Scoring Engine | ⏳ Pending | Rules engine, expiry calculation, transparent scoring |
+| **Phase 7** | Module 2: TLS Certificate Inspection Engine | ✅ Completed | JSSE TLS sockets, X.509 parsing, protocol & cipher probe |
+| **Phase 8** | Module 3: Expiry & Risk Scoring Engine | 🔄 In Progress | Rules engine, expiry calculation, transparent scoring |
 | **Phase 9** | Module 4: Reporting & Alert Generation | ⏳ Pending | PDF (OpenPDF), Excel (Apache POI), Email & Scheduler |
 | **Phase 10**| Integrated Workflow & End-to-End Testing | ⏳ Pending | Full user flow: Add -> Scan -> Score -> Alert -> Report |
 | **Phase 11**| Security Review & Hardening | ⏳ Pending | SSRF tests, DNS rebinding, timeout & input sanitization |
@@ -71,12 +71,13 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Expose REST endpoints via `WebsiteController`.
 
 ### Phase 7: Module 2 - TLS Certificate & Configuration Inspection
-- [ ] Build `TLSInspector` using Java JSSE (`SSLSocketFactory`, `SSLSocket`, `SSLParameters`).
-- [ ] Implement certificate parsing (`X509Certificate` subject, issuer, serial, dates, SANs, SHA-256 fingerprint).
-- [ ] Implement trust validation and HTTPS hostname verification.
-- [ ] Build `TLSConfigurationScanner` for individual protocol capability tests (TLS 1.0, 1.1, 1.2, 1.3) and cipher suite recording.
-- [ ] Persist `TLSScanResult` and `CertificateDetails`.
-- [ ] Build `TLSInspectionView` in Vaadin with detailed certificate inspect dialog.
+- [x] Build `TLSInspector` using Java JSSE (`SSLSocketFactory`, `SSLSocket`, `SSLParameters`).
+- [x] Implement certificate parsing (`X509Certificate` subject, issuer, serial, dates, SANs, SHA-256 fingerprint).
+- [x] Implement trust validation and HTTPS hostname verification.
+- [x] Build `TLSConfigurationScanner` for individual protocol capability tests (TLS 1.0, 1.1, 1.2, 1.3) and cipher suite recording.
+- [x] Persist `TLSScanResult` and `CertificateDetails`.
+- [x] Build `TLSInspectionView` in Vaadin with detailed certificate inspect dialog.
+- [x] Expose REST endpoints via `TLSInspectionController`.
 
 ### Phase 8: Module 3 - Certificate Expiry & Risk Detection
 - [ ] Implement `ExpiryChecker` with UTC-based date calculation and category thresholds.

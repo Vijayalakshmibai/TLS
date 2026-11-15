@@ -2,6 +2,10 @@ package com.tlsmonitor;
 
 import com.tlsmonitor.common.entity.DatabaseHealthCheck;
 import com.tlsmonitor.common.repository.DatabaseHealthCheckRepository;
+import com.tlsmonitor.inspection.entity.CertificateDetails;
+import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.repository.CertificateDetailsRepository;
+import com.tlsmonitor.inspection.repository.TLSScanResultRepository;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.repository.WebsiteRepository;
 import org.junit.jupiter.api.Test;
@@ -31,6 +35,12 @@ class PostgreSQLPersistenceIT {
     @Autowired
     private WebsiteRepository websiteRepository;
 
+    @Autowired
+    private TLSScanResultRepository scanResultRepository;
+
+    @Autowired
+    private CertificateDetailsRepository certificateDetailsRepository;
+
     @Test
     void testPostgreSQLConnectionAndPersistence() {
         DatabaseHealthCheck healthCheck = new DatabaseHealthCheck("HEALTHY_POSTGRES_CONNECTED", LocalDateTime.now());
@@ -54,5 +64,34 @@ class PostgreSQLPersistenceIT {
         assertTrue(fetched.isPresent());
         assertEquals(testDomain, fetched.get().getDomain());
         assertEquals("ACTIVE", fetched.get().getStatus());
+    }
+
+    @Test
+    void testScanResultAndCertificatePersistenceInPostgreSQL() {
+        TLSScanResult scan = new TLSScanResult();
+        scan.setWebsiteId(1L);
+        scan.setDomain("example.com");
+        scan.setConnectionStatus("SUCCESS");
+        scan.setTlsVersion("TLSv1.3");
+        scan.setCipherSuite("TLS_AES_128_GCM_SHA256");
+        scan.setHostnameValid(true);
+        scan.setTrustChainValid(true);
+        scan.setSupportedProtocols("TLSv1.2, TLSv1.3");
+        TLSScanResult savedScan = scanResultRepository.save(scan);
+        assertNotNull(savedScan.getId());
+
+        CertificateDetails cert = new CertificateDetails();
+        cert.setScanId(savedScan.getId());
+        cert.setWebsiteId(1L);
+        cert.setSubject("CN=example.com");
+        cert.setIssuer("CN=DigiCert Global Root CA");
+        cert.setKeySize(2048);
+        cert.setDaysRemaining(90);
+        CertificateDetails savedCert = certificateDetailsRepository.save(cert);
+        assertNotNull(savedCert.getId());
+
+        Optional<CertificateDetails> fetched = certificateDetailsRepository.findByScanId(savedScan.getId());
+        assertTrue(fetched.isPresent());
+        assertEquals("CN=example.com", fetched.get().getSubject());
     }
 }
