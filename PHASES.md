@@ -17,8 +17,8 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 | **Phase 6** | Module 1: Website Inventory | ✅ Completed | Domain/URL CRUD, validation, and anti-SSRF protections |
 | **Phase 7** | Module 2: TLS Certificate Inspection Engine | ✅ Completed | JSSE TLS sockets, X.509 parsing, protocol & cipher probe |
 | **Phase 8** | Module 3: Expiry & Risk Scoring Engine | ✅ Completed | Rules engine, expiry calculation, transparent scoring |
-| **Phase 9** | Module 4: Reporting & Alert Generation | 🔄 In Progress | PDF (OpenPDF), Excel (Apache POI), Email & Scheduler |
-| **Phase 10**| Integrated Workflow & End-to-End Testing | ⏳ Pending | Full user flow: Add -> Scan -> Score -> Alert -> Report |
+| **Phase 9** | Module 4: Reporting & Alert Generation | ✅ Completed | PDF (OpenPDF), Excel (Apache POI), Email & Scheduler |
+| **Phase 10**| Integrated Workflow & End-to-End Testing | 🔄 In Progress | Full user flow: Add -> Scan -> Score -> Alert -> Report |
 | **Phase 11**| Security Review & Hardening | ⏳ Pending | SSRF tests, DNS rebinding, timeout & input sanitization |
 | **Phase 12**| Deployment, Handover & Documentation | ⏳ Pending | Production config, migrations, user guide, final verification |
 
@@ -88,11 +88,11 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Expose REST endpoints via `RiskController`.
 
 ### Phase 9: Module 4 - Reporting & Alert Generation
-- [ ] Implement `PdfReportService` using OpenPDF for comprehensive audit reports.
-- [ ] Implement `ExcelReportService` using Apache POI for multi-sheet workbooks.
-- [ ] Implement `EmailService` and `AlertService` with deduplication and acknowledgement.
-- [ ] Implement `MonitoringScheduler` for automated recurring scans with bounded executor.
-- [ ] Build `ReportsView` and `AlertsView` in Vaadin.
+- [x] Implement `PdfReportService` using OpenPDF for comprehensive audit reports.
+- [x] Implement `ExcelReportService` using Apache POI for multi-sheet workbooks.
+- [x] Implement `EmailService` and `AlertService` with deduplication and acknowledgement.
+- [x] Implement `MonitoringScheduler` for automated recurring scans with bounded executor.
+- [x] Build `ReportsView` and `AlertsView` in Vaadin.
 
 ### Phase 10: System Integration & Workflow Verification
 - [ ] Connect inventory "Scan Now" button with asynchronous scan pipeline.
