@@ -7,12 +7,12 @@ A professional, full-stack Java platform for cybersecurity and web infrastructur
 ## 🛠 Technology Stack
 
 - **Runtime & Language**: Java 21 LTS (Temurin OpenJDK)
-- **Framework**: Spring Boot 3.4.x / Vaadin Flow 24.x
-- **Security & Auth**: Spring Security 6.x (BCrypt, Session Management, RBAC)
+- **Framework**: Spring Boot 3.4.3 / Vaadin Flow 24.6.5
+- **Security & Auth**: Spring Security 6.x (BCrypt password hashing, session protection, route guards)
 - **TLS Inspection Engine**: Native Java JSSE (`SSLSocket`, `SSLContext`, `SSLSession`, `SSLParameters`)
 - **Certificate Analysis**: Java Cryptography & X.509 API (`X509Certificate`, `MessageDigest`, `CertificateFactory`)
 - **Persistence Layer**: Spring Data JPA, Hibernate, PostgreSQL 17
-- **Reporting Engine**: OpenPDF (PDF Generation) & Apache POI (Excel Reports)
+- **Reporting Engine**: OpenPDF (PDF audit reports) & Apache POI (6-sheet Excel workbooks)
 - **Scheduling & Notifications**: Spring Scheduler & Spring Boot Mail
 - **Build Tool**: Apache Maven 3.9.x / Maven Wrapper
 
@@ -56,10 +56,79 @@ A professional, full-stack Java platform for cybersecurity and web infrastructur
 
 ---
 
+## 🚀 Quick Start Guide
+
+### 1. Prerequisites
+- **Java 21 LTS** or later.
+- **PostgreSQL 17** running on `localhost:5432` with database `tls_monitoring_db`.
+
+### 2. Run in Development Mode
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+### 3. Run Built Standalone Production JAR
+```powershell
+java -jar target/tls-monitor-1.0.0-SNAPSHOT.jar
+```
+
+### 4. Access the Application
+- URL: **http://localhost:8080**
+- Default Administrator Credentials:
+  - **Username:** `admin`
+  - **Password:** `admin123`
+*(Account is bootstrapped with BCrypt hashing automatically on first start).*
+
+---
+
 ## 🛡 Security Scanning Boundaries & Safe Scan Policy
 
-To protect internal systems and adhere to cybersecurity best practices:
-1. **SSRF Defenses**: Arbitrary internal, private, loopback (`127.0.0.1`, `localhost`), link-local (`169.254.0.0/16`), and cloud metadata (`169.254.169.254`) addresses are strictly blocked during registration and rechecked before connection.
-2. **Standardized Port**: Default inspection port is HTTPS 443 with timeout guards (5-second connect timeout, 5-second handshake timeout).
-3. **No Insecure Trust Bypass in Production**: Validates certificate trust using the standard Java TrustManager while recording detailed validation failures safely.
-4. **Rate Limiting & Bounded Concurrency**: Background inspection tasks execute within a bounded thread pool to avoid overwhelming remote hosts.
+To protect internal networks and adhere to cybersecurity best practices:
+1. **Anti-SSRF Protection**: Rejects all loopbacks (`127.0.0.1`, `::1`), private RFC1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local IPs, cloud metadata (`169.254.169.254`), and internal suffixes (`.internal`, `.local`).
+2. **Safe Port & Strict Timeouts**: Inspects strictly over standard TLS port 443 with 6-second connection timeouts and 6-second socket read timeouts.
+3. **Dual Handshake Inspection**: Performs standard TrustStore validation first. When an untrusted or self-signed certificate is encountered, gracefully captures the certificate chain and marks the finding rather than failing silently.
+4. **Formula Injection Sanitization**: All Excel exports automatically sanitize cells starting with `=`, `+`, `-`, or `@` to neutralize CSV/Excel formula injection attacks.
+5. **Severity Floor Rule**: If an endpoint contains any `HIGH` or `CRITICAL` finding (e.g. Hostname Mismatch, Expired Certificate), the target's overall risk posture is automatically elevated to reflect that severity floor.
+
+---
+
+## 🧪 Real Domains for Testing
+
+| Target Domain | Category | Expected Findings & Posture |
+|---|---|---|
+| **`google.com`** | Real Production | TLS 1.3, Google Trust Services CA, **LOW Risk (0–15)** |
+| **`github.com`** | Real Production | TLS 1.3, DigiCert CA, **LOW Risk (0–15)** |
+| **`cloudflare.com`** | Real Production | TLS 1.3, Cloudflare Inc ECC CA, **LOW Risk (0–15)** |
+| **`expired.badssl.com`** | Real Vulnerability Test | Expired Certificate, **CRITICAL Risk (80+)**, Triggers Alert |
+| **`wrong.host.badssl.com`**| Real Vulnerability Test | Hostname Mismatch, **HIGH Risk (40+)**, Triggers Alert |
+| **`self-signed.badssl.com`**| Real Vulnerability Test | Self-Signed / Untrusted Root, **CRITICAL Risk (75+)** |
+
+---
+
+## 🔌 REST API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/websites` | List all registered websites |
+| `POST`| `/api/websites` | Register a new target website with SSRF validation |
+| `DELETE`| `/api/websites/{id}` | Delete a website from inventory |
+| `POST`| `/api/scans/{websiteId}` | Trigger an immediate TLS scan and risk evaluation |
+| `GET` | `/api/scans/{websiteId}` | Retrieve full scan history for a website |
+| `GET` | `/api/certificates/{websiteId}` | Retrieve latest X.509 certificate details |
+| `GET` | `/api/risks/{websiteId}` | Retrieve current risk assessment & findings |
+| `GET` | `/api/reports/{websiteId}/pdf?inline=true` | View audit PDF report in browser |
+| `GET` | `/api/reports/{websiteId}/pdf?inline=false`| Download audit PDF report file |
+| `GET` | `/api/reports/excel` | Download global 6-sheet Excel workbook |
+| `GET` | `/api/alerts` | List all active security alerts |
+| `PUT` | `/api/alerts/{id}/acknowledge` | Acknowledge an alert |
+| `PUT` | `/api/alerts/{id}/resolve` | Mark an alert resolved |
+
+---
+
+## 📋 Running Tests
+
+Execute the full suite of 58 unit, integration, and security hardening tests:
+
+```powershell
+.\mvnw.cmd test
+```

@@ -55,7 +55,7 @@ public class RiskAnalyzer {
         }
 
         int score = scoringService.calculateScore(findings);
-        String level = scoringService.determineRiskLevel(score);
+        String level = scoringService.determineRiskLevel(score, findings);
 
         Long scanId = scan.getId() != null ? scan.getId() : 0L;
         Long websiteId = scan.getWebsiteId() != null ? scan.getWebsiteId() : 0L;
