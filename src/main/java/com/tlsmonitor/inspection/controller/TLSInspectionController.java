@@ -4,8 +4,8 @@ import com.tlsmonitor.common.dto.ApiResponse;
 import com.tlsmonitor.common.exception.ResourceNotFoundException;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.service.ScanOrchestratorService;
 import com.tlsmonitor.inspection.service.TLSInspectionService;
-import com.tlsmonitor.inspection.tls.TLSInspector;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,15 +16,18 @@ import java.util.List;
 public class TLSInspectionController {
 
     private final TLSInspectionService inspectionService;
+    private final ScanOrchestratorService scanOrchestratorService;
 
-    public TLSInspectionController(TLSInspectionService inspectionService) {
+    public TLSInspectionController(TLSInspectionService inspectionService,
+                                   ScanOrchestratorService scanOrchestratorService) {
         this.inspectionService = inspectionService;
+        this.scanOrchestratorService = scanOrchestratorService;
     }
 
     @PostMapping("/scans/{websiteId}")
     public ResponseEntity<ApiResponse<TLSScanResult>> triggerScan(@PathVariable Long websiteId) {
-        TLSInspector.InspectionOutcome outcome = inspectionService.performScan(websiteId);
-        return ResponseEntity.ok(ApiResponse.ok("TLS inspection completed", outcome.scanResult()));
+        ScanOrchestratorService.ScanPipelineResult result = scanOrchestratorService.executeScanPipeline(websiteId);
+        return ResponseEntity.ok(ApiResponse.ok("TLS inspection and risk scoring completed", result.scanResult()));
     }
 
     @GetMapping("/scans/{websiteId}")
