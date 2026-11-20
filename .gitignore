@@ -49,3 +49,5 @@ Desktop.ini
 ### Frontend Generated ###
 src/main/frontend/generated/
 frontend/generated/
+node_modules/
+frontend/generated/
