@@ -15,13 +15,26 @@ public class TestTlsServer implements AutoCloseable {
     private final int port;
 
     public TestTlsServer(SSLContext sslContext) throws IOException {
+        this(sslContext, new String[]{"TLSv1.3", "TLSv1.2"}, null);
+    }
+
+    public TestTlsServer(SSLContext sslContext, String[] protocols) throws IOException {
+        this(sslContext, protocols, null);
+    }
+
+    public TestTlsServer(SSLContext sslContext, String[] protocols, String[] cipherSuites) throws IOException {
         this.server = HttpsServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         this.server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
             @Override
             public void configure(HttpsParameters params) {
                 try {
                     params.setNeedClientAuth(false);
-                    params.setProtocols(new String[]{"TLSv1.3", "TLSv1.2"});
+                    if (protocols != null && protocols.length > 0) {
+                        params.setProtocols(protocols);
+                    }
+                    if (cipherSuites != null && cipherSuites.length > 0) {
+                        params.setCipherSuites(cipherSuites);
+                    }
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }

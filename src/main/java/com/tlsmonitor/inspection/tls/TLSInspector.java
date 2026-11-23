@@ -172,6 +172,16 @@ public class TLSInspector {
             scanResult.setSupportedProtocols(scanResult.getTlsVersion());
         }
 
+        if (configurationScanner.isOutdatedProtocol(scanResult.getTlsVersion())) {
+            scanResult.setWeakProtocolDetected(true);
+        }
+
+        if (scanResult.getSupportedProtocols() == null || "None Detected".equalsIgnoreCase(scanResult.getSupportedProtocols())) {
+            if (scanResult.getTlsVersion() != null) {
+                scanResult.setSupportedProtocols(scanResult.getTlsVersion());
+            }
+        }
+
         scanResult.setResponseTimeMs(System.currentTimeMillis() - startTime);
         return new InspectionOutcome(scanResult, certDetails);
     }
