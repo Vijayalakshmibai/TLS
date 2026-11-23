@@ -18,12 +18,24 @@ public class ExpiryChecker {
         LOW        // > 60 days
     }
 
+    public boolean isNotYetValid(LocalDateTime validFrom) {
+        if (validFrom == null) {
+            return false;
+        }
+        return LocalDateTime.now(ZoneOffset.UTC).isBefore(validFrom);
+    }
+
     public long calculateRemainingDays(LocalDateTime expiryDateTime) {
         if (expiryDateTime == null) {
             return -1;
         }
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        if (now.isAfter(expiryDateTime)) {
+            long days = ChronoUnit.DAYS.between(now.toLocalDate(), expiryDateTime.toLocalDate());
+            return days < 0 ? days : -1;
+        }
         LocalDate expiryDate = expiryDateTime.toLocalDate();
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalDate today = now.toLocalDate();
         return ChronoUnit.DAYS.between(today, expiryDate);
     }
 

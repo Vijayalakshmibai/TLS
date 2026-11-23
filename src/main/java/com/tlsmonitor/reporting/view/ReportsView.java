@@ -188,7 +188,7 @@ public class ReportsView extends VerticalLayout {
         certGrid.addColumn(CertificateDetails::getSubject).setHeader("Subject").setAutoWidth(true);
         certGrid.addColumn(CertificateDetails::getIssuer).setHeader("Issuer CA").setAutoWidth(true);
         certGrid.addColumn(c -> c.getDaysRemaining() + " days").setHeader("Days Left").setWidth("110px");
-        certGrid.addColumn(c -> c.isExpired() ? "EXPIRED" : "VALID").setHeader("Status").setWidth("100px");
+        certGrid.addColumn(c -> c.isExpired() ? "EXPIRED" : (c.isNotYetValid() ? "NOT YET VALID" : "VALID")).setHeader("Status").setWidth("120px");
         certGrid.addColumn(c -> c.getKeySize() + " bits (" + c.getPublicKeyAlgorithm() + ")").setHeader("Public Key").setAutoWidth(true);
         certGrid.setItems(certRepository.findAll());
         tabSheet.add("2. Certificate Details", certGrid);

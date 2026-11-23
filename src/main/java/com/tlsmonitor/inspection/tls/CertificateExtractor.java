@@ -37,14 +37,16 @@ public class CertificateExtractor {
         details.setIssuer(cert.getIssuerX500Principal().getName());
         details.setSerialNumber(cert.getSerialNumber().toString(16).toUpperCase());
 
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         LocalDateTime notBefore = cert.getNotBefore().toInstant().atZone(ZoneOffset.UTC).toLocalDateTime();
         LocalDateTime notAfter = cert.getNotAfter().toInstant().atZone(ZoneOffset.UTC).toLocalDateTime();
         details.setValidFrom(notBefore);
         details.setValidUntil(notAfter);
 
-        long daysRemaining = ChronoUnit.DAYS.between(LocalDateTime.now(ZoneOffset.UTC), notAfter);
+        long daysRemaining = ChronoUnit.DAYS.between(now, notAfter);
         details.setDaysRemaining(daysRemaining);
-        details.setExpired(daysRemaining < 0);
+        details.setExpired(now.isAfter(notAfter));
+        details.setNotYetValid(now.isBefore(notBefore));
 
         details.setSignatureAlgorithm(cert.getSigAlgName());
         details.setPublicKeyAlgorithm(cert.getPublicKey().getAlgorithm());

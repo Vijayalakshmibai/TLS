@@ -13,6 +13,8 @@ import java.net.Socket;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 @Component
 public class TLSInspector {
@@ -54,6 +56,7 @@ public class TLSInspector {
 
         // 1. Primary Handshake using Default JVM TrustStore (Validates Trust & Hostname)
         boolean trustValid = false;
+        boolean hostnameValid = false;
         String trustErrorMsg = null;
         SSLSession activeSession = null;
         X509Certificate[] certChain = null;
@@ -75,6 +78,7 @@ public class TLSInspector {
                     sslSocket.startHandshake();
                     activeSession = sslSocket.getSession();
                     trustValid = true;
+                    hostnameValid = true;
 
                     Certificate[] peerCerts = activeSession.getPeerCertificates();
                     if (peerCerts != null && peerCerts.length > 0) {
@@ -136,17 +140,9 @@ public class TLSInspector {
             }
         }
 
-        // Check Hostname verification independently
-        boolean hostnameValid = false;
-        if (certChain != null && certChain.length > 0) {
-            try {
-                HostnameVerifier verifier = HttpsURLConnection.getDefaultHostnameVerifier();
-                if (activeSession != null) {
-                    hostnameValid = verifier.verify(domain, activeSession);
-                }
-            } catch (Exception e) {
-                hostnameValid = false;
-            }
+        // Check Hostname verification independently if not already established
+        if (!hostnameValid && certChain != null && certChain.length > 0) {
+            hostnameValid = verifyHostname(domain, certChain[0]);
         }
 
         scanResult.setTrustChainValid(trustValid);
@@ -178,5 +174,58 @@ public class TLSInspector {
 
         scanResult.setResponseTimeMs(System.currentTimeMillis() - startTime);
         return new InspectionOutcome(scanResult, certDetails);
+    }
+
+    public boolean verifyHostname(String domain, X509Certificate cert) {
+        if (domain == null || cert == null) {
+            return false;
+        }
+        try {
+            Collection<List<?>> sans = cert.getSubjectAlternativeNames();
+            if (sans != null && !sans.isEmpty()) {
+                for (List<?> item : sans) {
+                    if (item.size() >= 2 && item.get(1) != null) {
+                        String san = item.get(1).toString().trim();
+                        if (matchHostname(domain, san)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            // Fallback to CN if no SANs present
+            String cn = extractCn(cert);
+            return cn != null && matchHostname(domain, cn);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean matchHostname(String host, String pattern) {
+        if (host.equalsIgnoreCase(pattern)) {
+            return true;
+        }
+        if (pattern.startsWith("*.")) {
+            String suffix = pattern.substring(1);
+            int firstDot = host.indexOf('.');
+            if (firstDot > 0) {
+                String hostSuffix = host.substring(firstDot);
+                return hostSuffix.equalsIgnoreCase(suffix);
+            }
+        }
+        return false;
+    }
+
+    private String extractCn(X509Certificate cert) {
+        try {
+            String dn = cert.getSubjectX500Principal().getName();
+            for (String part : dn.split(",")) {
+                String trimmed = part.trim();
+                if (trimmed.toUpperCase().startsWith("CN=")) {
+                    return trimmed.substring(3).trim();
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

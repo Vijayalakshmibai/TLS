@@ -56,4 +56,13 @@ class ExpiryCheckerTest {
         assertEquals(ExpiryChecker.ExpiryCategory.LOW, checker.categorize(61));
         assertEquals(ExpiryChecker.ExpiryCategory.LOW, checker.categorize(365));
     }
+
+    @Test
+    void testIsNotYetValid() {
+        LocalDateTime future = LocalDateTime.now(ZoneOffset.UTC).plusDays(10);
+        LocalDateTime past = LocalDateTime.now(ZoneOffset.UTC).minusDays(10);
+        assertTrue(checker.isNotYetValid(future));
+        assertFalse(checker.isNotYetValid(past));
+        assertFalse(checker.isNotYetValid(null));
+    }
 }
