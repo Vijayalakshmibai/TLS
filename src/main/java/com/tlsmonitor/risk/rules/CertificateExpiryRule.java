@@ -52,7 +52,9 @@ public class CertificateExpiryRule implements RiskRule {
         }
 
         long daysRemaining = expiryChecker.calculateRemainingDays(cert.getValidUntil());
-        ExpiryChecker.ExpiryCategory category = expiryChecker.categorize(daysRemaining);
+        ExpiryChecker.ExpiryCategory category = (cert.isExpired() && daysRemaining >= 0)
+                ? ExpiryChecker.ExpiryCategory.EXPIRED
+                : expiryChecker.categorize(daysRemaining);
 
         switch (category) {
             case EXPIRED -> findings.add(new SecurityFinding(

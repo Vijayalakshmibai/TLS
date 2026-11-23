@@ -44,6 +44,11 @@ public class RiskScoringService {
             return "HIGH";
         }
 
+        boolean hasMedium = findings.stream().anyMatch(f -> "MEDIUM".equalsIgnoreCase(f.getSeverity()));
+        if (hasMedium && "LOW".equalsIgnoreCase(baseLevel)) {
+            return "MEDIUM";
+        }
+
         return baseLevel;
     }
 }
