@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.*;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.cert.X509Certificate;
@@ -16,11 +17,13 @@ public class TLSConfigurationScanner {
 
     private static final Logger log = LoggerFactory.getLogger(TLSConfigurationScanner.class);
 
-    // Note: Java JSSE uses "TLSv1" for TLS 1.0. Probing array uses JSSE standard names.
-    private static final String[] PROTOCOLS_TO_PROBE = {"TLSv1.3", "TLSv1.2", "TLSv1.1", "TLSv1"};
+    // Note: Java JSSE uses "TLSv1" for TLS 1.0. Probing array uses JSSE standard
+    // names.
+    private static final String[] PROTOCOLS_TO_PROBE = { "TLSv1.3", "TLSv1.2", "TLSv1.1", "TLSv1" };
     private static final int TIMEOUT_MS = 4000;
 
-    public record ProtocolScanReport(String supportedProtocols, boolean weakProtocolDetected) {}
+    public record ProtocolScanReport(String supportedProtocols, boolean weakProtocolDetected) {
+    }
 
     public record CipherAnalysis(
             String cipherSuite,
@@ -28,8 +31,8 @@ public class TLSConfigurationScanner {
             boolean isEnabledByDefault,
             boolean isWeakOrDeprecated,
             String category,
-            String status
-    ) {}
+            String status) {
+    }
 
     public ProtocolScanReport probeProtocols(String host, int port) {
         List<String> supported = new ArrayList<>();
@@ -54,18 +57,26 @@ public class TLSConfigurationScanner {
         String jsseProtocol = "TLSv1.0".equalsIgnoreCase(protocol) ? "TLSv1" : protocol;
         try {
             SSLContext sslContext = SSLContext.getInstance(jsseProtocol);
-            // Use permissive TrustManager ONLY for testing protocol availability so trust failures don't abort protocol probes
-            sslContext.init(null, new TrustManager[]{new X509TrustManager() {
-                public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-                public void checkClientTrusted(X509Certificate[] chain, String authType) {}
-                public void checkServerTrusted(X509Certificate[] chain, String authType) {}
-            }}, new java.security.SecureRandom());
+            // Use permissive TrustManager ONLY for testing protocol availability so trust
+            // failures don't abort protocol probes
+            sslContext.init(null, new TrustManager[] { new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+
+                public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                }
+
+                public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                }
+            } }, new java.security.SecureRandom());
 
             SSLSocketFactory factory = sslContext.getSocketFactory();
+            InetAddress addr = InetAddress.getByName(host);
             try (Socket plainSocket = new Socket()) {
-                plainSocket.connect(new InetSocketAddress(host, port), TIMEOUT_MS);
+                plainSocket.connect(new InetSocketAddress(addr, port), TIMEOUT_MS);
                 try (SSLSocket sslSocket = (SSLSocket) factory.createSocket(plainSocket, host, port, true)) {
-                    sslSocket.setEnabledProtocols(new String[]{jsseProtocol});
+                    sslSocket.setEnabledProtocols(new String[] { jsseProtocol });
                     sslSocket.setSoTimeout(TIMEOUT_MS);
                     sslSocket.startHandshake();
                     return true;
@@ -97,7 +108,8 @@ public class TLSConfigurationScanner {
                     return true;
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return false;
     }
 
@@ -112,7 +124,8 @@ public class TLSConfigurationScanner {
                     return true;
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return false;
     }
 
@@ -130,14 +143,22 @@ public class TLSConfigurationScanner {
                 || upper.contains("CBC");
 
         String category;
-        if (upper.contains("RC4")) category = "RC4";
-        else if (upper.contains("3DES") || upper.contains("DES")) category = "DES/3DES";
-        else if (upper.contains("NULL")) category = "NULL";
-        else if (upper.contains("EXPORT")) category = "EXPORT";
-        else if (upper.contains("MD5")) category = "MD5";
-        else if (upper.contains("CBC")) category = "CBC";
-        else if (upper.contains("GCM") || upper.contains("POLY1305") || upper.contains("CCM")) category = "AEAD";
-        else category = "OTHER";
+        if (upper.contains("RC4"))
+            category = "RC4";
+        else if (upper.contains("3DES") || upper.contains("DES"))
+            category = "DES/3DES";
+        else if (upper.contains("NULL"))
+            category = "NULL";
+        else if (upper.contains("EXPORT"))
+            category = "EXPORT";
+        else if (upper.contains("MD5"))
+            category = "MD5";
+        else if (upper.contains("CBC"))
+            category = "CBC";
+        else if (upper.contains("GCM") || upper.contains("POLY1305") || upper.contains("CCM"))
+            category = "AEAD";
+        else
+            category = "OTHER";
 
         String status;
         if (!supported) {
@@ -151,4 +172,3 @@ public class TLSConfigurationScanner {
         return new CipherAnalysis(cipherSuite, supported, enabled, weak, category, status);
     }
 }
-

@@ -3,19 +3,27 @@ package com.tlsmonitor.risk.view;
 import com.tlsmonitor.dashboard.view.MainLayout;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.service.ScanOrchestratorService;
 import com.tlsmonitor.inspection.service.TLSInspectionService;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.service.WebsiteService;
 import com.tlsmonitor.risk.entity.RiskAssessment;
 import com.tlsmonitor.risk.entity.SecurityFinding;
 import com.tlsmonitor.risk.service.RiskAnalyzer;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
@@ -27,11 +35,12 @@ import java.util.Optional;
 @Route(value = "risks", layout = MainLayout.class)
 @PageTitle("Risk Analysis | Fresh TLS Monitor")
 @PermitAll
-public class RiskAnalysisView extends VerticalLayout {
+public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObserver {
 
     private final WebsiteService websiteService;
     private final TLSInspectionService inspectionService;
     private final RiskAnalyzer riskAnalyzer;
+    private final ScanOrchestratorService scanOrchestratorService;
 
     private final ComboBox<Website> websiteSelect = new ComboBox<>("Select Monitored Website");
     private final Select<String> severityFilter = new Select<>();
@@ -42,10 +51,12 @@ public class RiskAnalysisView extends VerticalLayout {
 
     public RiskAnalysisView(WebsiteService websiteService,
                             TLSInspectionService inspectionService,
-                            RiskAnalyzer riskAnalyzer) {
+                            RiskAnalyzer riskAnalyzer,
+                            ScanOrchestratorService scanOrchestratorService) {
         this.websiteService = websiteService;
         this.inspectionService = inspectionService;
         this.riskAnalyzer = riskAnalyzer;
+        this.scanOrchestratorService = scanOrchestratorService;
 
         setSizeFull();
         setPadding(true);
@@ -62,6 +73,19 @@ public class RiskAnalysisView extends VerticalLayout {
         scoreCardContainer.setWidthFull();
 
         add(header, subtitle, filterRow, scoreCardContainer, new H3("Detected Security Findings & Action Items"), findingsGrid);
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        List<Website> websites = websiteService.getAllWebsites();
+        Website current = websiteSelect.getValue();
+        websiteSelect.setItems(websites);
+        if (current != null && websites.contains(current)) {
+            websiteSelect.setValue(current);
+        } else if (!websites.isEmpty()) {
+            websiteSelect.setValue(websites.get(0));
+        }
+        loadWebsiteRiskData();
     }
 
     private HorizontalLayout createFilterRow() {
@@ -81,7 +105,25 @@ public class RiskAnalysisView extends VerticalLayout {
         websiteSelect.addValueChangeListener(e -> loadWebsiteRiskData());
         severityFilter.addValueChangeListener(e -> loadWebsiteRiskData());
 
-        HorizontalLayout row = new HorizontalLayout(websiteSelect, severityFilter);
+        Button runScanBtn = new Button("Run Scan", VaadinIcon.PLAY.create(), e -> {
+            Website site = websiteSelect.getValue();
+            if (site != null) {
+                try {
+                    Notification.show("Starting inspection for " + site.getDomain() + "...", 2000, Notification.Position.TOP_CENTER);
+                    ScanOrchestratorService.ScanPipelineResult result = scanOrchestratorService.executeScanPipeline(site.getId());
+                    Notification.show("Scan complete! Risk Score: " + result.riskAssessment().getTotalScore() + "/100 ("
+                            + result.riskAssessment().getRiskLevel() + ")", 4000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    loadWebsiteRiskData();
+                } catch (Exception ex) {
+                    Notification.show("Scan failed: " + ex.getMessage(), 5000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
+            }
+        });
+        runScanBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        HorizontalLayout row = new HorizontalLayout(websiteSelect, severityFilter, runScanBtn);
         row.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.END);
         row.setSpacing(true);
 
@@ -137,25 +179,58 @@ public class RiskAnalysisView extends VerticalLayout {
             return;
         }
 
-        // Fetch latest scan and certificate to calculate or display assessment
+        // Check if latest assessment exists
+        Optional<RiskAssessment> existingAssessment = riskAnalyzer.getLatestAssessment(site.getId());
         Optional<TLSScanResult> latestScan = inspectionService.getLatestScan(site.getId());
-        if (latestScan.isEmpty()) {
+
+        if (existingAssessment.isEmpty() && latestScan.isEmpty()) {
             scoreCardContainer.removeAll();
-            Div emptyMsg = new Div(new Paragraph("No scan completed yet for " + site.getDomain() + ". Run an inspection from the Website Inventory or TLS Inspection page."));
-            emptyMsg.getStyle().set("color", "#64748b");
+            Div emptyMsg = new Div();
+            emptyMsg.getStyle().set("padding", "1.5rem");
+            emptyMsg.getStyle().set("background-color", "#f8fafc");
+            emptyMsg.getStyle().set("border", "1px dashed #cbd5e1");
+            emptyMsg.getStyle().set("border-radius", "8px");
+
+            Paragraph p = new Paragraph("No scan completed yet for " + site.getDomain() + ". Click below to perform an initial security scan and compute risk findings.");
+            p.getStyle().set("color", "#64748b");
+            p.getStyle().set("margin-bottom", "1rem");
+
+            Button scanBtn = new Button("Run Security Scan for " + site.getDomain(), VaadinIcon.SEARCH.create(), e -> {
+                try {
+                    Notification.show("Inspecting " + site.getDomain() + "...", 2000, Notification.Position.TOP_CENTER);
+                    ScanOrchestratorService.ScanPipelineResult result = scanOrchestratorService.executeScanPipeline(site.getId());
+                    Notification.show("Scan complete! Score: " + result.riskAssessment().getTotalScore() + "/100 (" + result.riskAssessment().getRiskLevel() + ")",
+                            4000, Notification.Position.TOP_CENTER).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    loadWebsiteRiskData();
+                } catch (Exception ex) {
+                    Notification.show("Scan failed: " + ex.getMessage(), 5000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
+            });
+            scanBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+            emptyMsg.add(p, scanBtn);
             scoreCardContainer.add(emptyMsg);
             findingsGrid.setItems(List.of());
             return;
         }
 
-        TLSScanResult scan = latestScan.get();
-        Optional<CertificateDetails> cert = inspectionService.getCertificateByScanId(scan.getId());
+        RiskAssessment assessment;
+        List<SecurityFinding> findings;
 
-        // Run or fetch risk analysis
-        RiskAnalyzer.AnalysisResult result = riskAnalyzer.analyzeAndPersist(scan, cert.orElse(null));
-        displayScoreCard(site.getDomain(), result.assessment());
+        if (existingAssessment.isPresent()) {
+            assessment = existingAssessment.get();
+            findings = riskAnalyzer.getFindingsForWebsite(site.getId());
+        } else {
+            TLSScanResult scan = latestScan.get();
+            Optional<CertificateDetails> cert = inspectionService.getCertificateByScanId(scan.getId());
+            RiskAnalyzer.AnalysisResult result = riskAnalyzer.analyzeAndPersist(scan, cert.orElse(null));
+            assessment = result.assessment();
+            findings = result.findings();
+        }
 
-        List<SecurityFinding> findings = result.findings();
+        displayScoreCard(site.getDomain(), assessment);
+
         String filter = severityFilter.getValue();
         if (filter != null && !"ALL".equalsIgnoreCase(filter)) {
             findings = findings.stream().filter(f -> f.getSeverity().equalsIgnoreCase(filter)).toList();

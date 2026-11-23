@@ -41,7 +41,7 @@ class WebsiteServiceTest {
 
         when(validationService.normalizeAndValidate("example.com"))
                 .thenReturn(new WebsiteValidationService.NormalizedTarget("example.com", 443, "https://example.com"));
-        when(websiteRepository.existsByDomain("example.com")).thenReturn(false);
+        when(websiteRepository.existsByDomainIgnoreCase("example.com")).thenReturn(false);
         when(websiteRepository.save(any(Website.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Website saved = websiteService.addWebsite(website);
@@ -61,7 +61,7 @@ class WebsiteServiceTest {
 
         when(validationService.normalizeAndValidate("example.com"))
                 .thenReturn(new WebsiteValidationService.NormalizedTarget("example.com", 443, "https://example.com"));
-        when(websiteRepository.existsByDomain("example.com")).thenReturn(true);
+        when(websiteRepository.existsByDomainIgnoreCase("example.com")).thenReturn(true);
 
         assertThrows(IllegalArgumentException.class, () -> websiteService.addWebsite(website));
         verify(websiteRepository, never()).save(any());

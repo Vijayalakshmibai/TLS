@@ -25,10 +25,19 @@ public class TLSInspector {
 
     private final CertificateExtractor certificateExtractor;
     private final TLSConfigurationScanner configurationScanner;
+    private final com.tlsmonitor.inventory.service.WebsiteValidationService validationService;
 
     public TLSInspector(CertificateExtractor certificateExtractor, TLSConfigurationScanner configurationScanner) {
+        this(certificateExtractor, configurationScanner, new com.tlsmonitor.inventory.service.WebsiteValidationService(true));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TLSInspector(CertificateExtractor certificateExtractor,
+                        TLSConfigurationScanner configurationScanner,
+                        com.tlsmonitor.inventory.service.WebsiteValidationService validationService) {
         this.certificateExtractor = certificateExtractor;
         this.configurationScanner = configurationScanner;
+        this.validationService = validationService != null ? validationService : new com.tlsmonitor.inventory.service.WebsiteValidationService();
     }
 
     public record InspectionOutcome(TLSScanResult scanResult, CertificateDetails certificateDetails) {}
@@ -44,9 +53,18 @@ public class TLSInspector {
 
         CertificateDetails certDetails = null;
 
+        InetAddress addr;
         try {
-            InetAddress addr = InetAddress.getByName(domain);
+            addr = InetAddress.getByName(domain);
             scanResult.setResolvedIp(addr.getHostAddress());
+            if (!validationService.isAllowLoopback() || !addr.isLoopbackAddress()) {
+                validationService.validateIPAgainstSSRF(addr);
+            }
+        } catch (com.tlsmonitor.common.exception.SSRFSecurityException se) {
+            scanResult.setConnectionStatus("BLOCKED_SSRF");
+            scanResult.setTrustError(se.getMessage());
+            scanResult.setResponseTimeMs(System.currentTimeMillis() - startTime);
+            return new InspectionOutcome(scanResult, null);
         } catch (Exception e) {
             scanResult.setConnectionStatus("DNS_RESOLUTION_FAILED");
             scanResult.setTrustError("Could not resolve host: " + domain);
@@ -66,7 +84,7 @@ public class TLSInspector {
             SSLSocketFactory factory = defaultContext.getSocketFactory();
 
             try (Socket plainSocket = new Socket()) {
-                plainSocket.connect(new InetSocketAddress(domain, port), CONNECT_TIMEOUT_MS);
+                plainSocket.connect(new InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
                 try (SSLSocket sslSocket = (SSLSocket) factory.createSocket(plainSocket, domain, port, true)) {
                     sslSocket.setSoTimeout(SO_TIMEOUT_MS);
 
@@ -115,7 +133,7 @@ public class TLSInspector {
                 }}, new java.security.SecureRandom());
 
                 try (Socket plainSocket = new Socket()) {
-                    plainSocket.connect(new InetSocketAddress(domain, port), CONNECT_TIMEOUT_MS);
+                    plainSocket.connect(new InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
                     try (SSLSocket sslSocket = (SSLSocket) captiveContext.getSocketFactory().createSocket(plainSocket, domain, port, true)) {
                         sslSocket.setSoTimeout(SO_TIMEOUT_MS);
                         sslSocket.startHandshake();

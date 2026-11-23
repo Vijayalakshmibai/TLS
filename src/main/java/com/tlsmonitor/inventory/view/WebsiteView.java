@@ -174,11 +174,22 @@ public class WebsiteView extends VerticalLayout {
                 site.setContactEmail(emailField.getValue());
                 site.setStatus("ACTIVE");
 
-                websiteService.addWebsite(site);
-                Notification.show("Website registered successfully!", 3000, Notification.Position.TOP_CENTER)
+                Website saved = websiteService.addWebsite(site);
+                Notification.show("Website registered successfully! Running initial scan...", 3000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 dialog.close();
                 updateList();
+
+                try {
+                    ScanOrchestratorService.ScanPipelineResult result = scanOrchestratorService.executeScanPipeline(saved.getId());
+                    Notification.show("Initial scan complete for " + saved.getDomain() + "! Risk Score: "
+                            + result.riskAssessment().getTotalScore() + "/100 (" + result.riskAssessment().getRiskLevel() + ")",
+                            4000, Notification.Position.TOP_CENTER).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    updateList();
+                } catch (Exception scanEx) {
+                    Notification.show("Registered " + saved.getDomain() + ", but initial scan encountered an issue: " + scanEx.getMessage(),
+                            5000, Notification.Position.TOP_CENTER).addThemeVariants(NotificationVariant.LUMO_PRIMARY);
+                }
             } catch (Exception ex) {
                 Notification.show(ex.getMessage(), 5000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
