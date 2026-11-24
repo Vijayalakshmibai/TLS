@@ -1,15 +1,13 @@
 package com.tlsmonitor.risk.view;
 
 import com.tlsmonitor.dashboard.view.MainLayout;
-import com.tlsmonitor.inspection.entity.CertificateDetails;
-import com.tlsmonitor.inspection.entity.TLSScanResult;
 import com.tlsmonitor.inspection.service.ScanOrchestratorService;
-import com.tlsmonitor.inspection.service.TLSInspectionService;
+import com.tlsmonitor.risk.service.RiskReportResolver;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.service.WebsiteService;
+import com.tlsmonitor.common.view.WebsiteSelection;
 import com.tlsmonitor.risk.entity.RiskAssessment;
 import com.tlsmonitor.risk.entity.SecurityFinding;
-import com.tlsmonitor.risk.service.RiskAnalyzer;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -38,8 +36,7 @@ import java.util.Optional;
 public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObserver {
 
     private final WebsiteService websiteService;
-    private final TLSInspectionService inspectionService;
-    private final RiskAnalyzer riskAnalyzer;
+    private final RiskReportResolver riskReportResolver;
     private final ScanOrchestratorService scanOrchestratorService;
 
     private final ComboBox<Website> websiteSelect = new ComboBox<>("Select Monitored Website");
@@ -50,12 +47,10 @@ public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObser
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public RiskAnalysisView(WebsiteService websiteService,
-                            TLSInspectionService inspectionService,
-                            RiskAnalyzer riskAnalyzer,
+                            RiskReportResolver riskReportResolver,
                             ScanOrchestratorService scanOrchestratorService) {
         this.websiteService = websiteService;
-        this.inspectionService = inspectionService;
-        this.riskAnalyzer = riskAnalyzer;
+        this.riskReportResolver = riskReportResolver;
         this.scanOrchestratorService = scanOrchestratorService;
 
         setSizeFull();
@@ -78,13 +73,11 @@ public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObser
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         List<Website> websites = websiteService.getAllWebsites();
-        Website current = websiteSelect.getValue();
         websiteSelect.setItems(websites);
-        if (current != null && websites.contains(current)) {
-            websiteSelect.setValue(current);
-        } else if (!websites.isEmpty()) {
-            websiteSelect.setValue(websites.get(0));
-        }
+        WebsiteSelection.resolve(event, websites).ifPresent(id -> websites.stream()
+                .filter(w -> w.getId().equals(id))
+                .findFirst()
+                .ifPresent(websiteSelect::setValue));
         loadWebsiteRiskData();
     }
 
@@ -102,7 +95,12 @@ public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObser
         severityFilter.setValue("ALL");
         severityFilter.setWidth("180px");
 
-        websiteSelect.addValueChangeListener(e -> loadWebsiteRiskData());
+        websiteSelect.addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                WebsiteSelection.remember(e.getValue().getId());
+            }
+            loadWebsiteRiskData();
+        });
         severityFilter.addValueChangeListener(e -> loadWebsiteRiskData());
 
         Button runScanBtn = new Button("Run Scan", VaadinIcon.PLAY.create(), e -> {
@@ -179,11 +177,11 @@ public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObser
             return;
         }
 
-        // Check if latest assessment exists
-        Optional<RiskAssessment> existingAssessment = riskAnalyzer.getLatestAssessment(site.getId());
-        Optional<TLSScanResult> latestScan = inspectionService.getLatestScan(site.getId());
+        // Single source of truth, shared with the PDF report endpoint:
+        // latest scan -> (reuse assessment covering it, else recompute & persist fresh) -> its findings.
+        Optional<RiskReportResolver.ResolvedRisk> resolvedRisk = riskReportResolver.resolve(site.getId());
 
-        if (existingAssessment.isEmpty() && latestScan.isEmpty()) {
+        if (resolvedRisk.isEmpty()) {
             scoreCardContainer.removeAll();
             Div emptyMsg = new Div();
             emptyMsg.getStyle().set("padding", "1.5rem");
@@ -191,7 +189,7 @@ public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObser
             emptyMsg.getStyle().set("border", "1px dashed #cbd5e1");
             emptyMsg.getStyle().set("border-radius", "8px");
 
-            Paragraph p = new Paragraph("No scan completed yet for " + site.getDomain() + ". Click below to perform an initial security scan and compute risk findings.");
+            Paragraph p = new Paragraph("No scan has been recorded for " + site.getDomain() + " (" + site.getUrl() + ") yet. Select a website with scan history from the dropdown, or run an initial scan below to compute risk findings.");
             p.getStyle().set("color", "#64748b");
             p.getStyle().set("margin-bottom", "1rem");
 
@@ -215,21 +213,10 @@ public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObser
             return;
         }
 
-        RiskAssessment assessment;
-        List<SecurityFinding> findings;
+        RiskAssessment assessment = resolvedRisk.get().assessment();
+        List<SecurityFinding> findings = resolvedRisk.get().findings();
 
-        if (existingAssessment.isPresent()) {
-            assessment = existingAssessment.get();
-            findings = riskAnalyzer.getFindingsForWebsite(site.getId());
-        } else {
-            TLSScanResult scan = latestScan.get();
-            Optional<CertificateDetails> cert = inspectionService.getCertificateByScanId(scan.getId());
-            RiskAnalyzer.AnalysisResult result = riskAnalyzer.analyzeAndPersist(scan, cert.orElse(null));
-            assessment = result.assessment();
-            findings = result.findings();
-        }
-
-        displayScoreCard(site.getDomain(), assessment);
+        displayScoreCard(site.getDomain(), assessment, findings.size());
 
         String filter = severityFilter.getValue();
         if (filter != null && !"ALL".equalsIgnoreCase(filter)) {
@@ -238,7 +225,7 @@ public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObser
         findingsGrid.setItems(findings);
     }
 
-    private void displayScoreCard(String domain, RiskAssessment assessment) {
+    private void displayScoreCard(String domain, RiskAssessment assessment, int matchedFindings) {
         scoreCardContainer.removeAll();
 
         Div card = new Div();
@@ -260,7 +247,7 @@ public class RiskAnalysisView extends VerticalLayout implements BeforeEnterObser
         H3 title = new H3("Overall Security Score for " + domain);
         title.getStyle().set("margin", "0 0 0.5rem 0");
 
-        Paragraph meta = new Paragraph("Assessment Timestamp: " + assessment.getAssessedAt().format(DATE_FORMATTER) + " | Rule Set: v" + assessment.getRuleSetVersion() + " | Total Issues: " + assessment.getFindingsCount());
+        Paragraph meta = new Paragraph("Assessment Timestamp: " + assessment.getAssessedAt().format(DATE_FORMATTER) + " | Rule Set: v" + assessment.getRuleSetVersion() + " | Total Issues: " + matchedFindings);
         meta.getStyle().set("color", "#64748b");
         meta.getStyle().set("margin", "0");
 
