@@ -27,6 +27,9 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
+import com.tlsmonitor.common.view.WebsiteSelection;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
@@ -37,7 +40,7 @@ import java.util.List;
 @Route(value = "reports", layout = MainLayout.class)
 @PageTitle("Reports & Exports | Fresh TLS Monitor")
 @PermitAll
-public class ReportsView extends VerticalLayout {
+public class ReportsView extends VerticalLayout implements BeforeEnterObserver {
 
     private final WebsiteService websiteService;
     private final TLSInspectionService inspectionService;
@@ -47,6 +50,7 @@ public class ReportsView extends VerticalLayout {
     private final CertificateDetailsRepository certRepository;
     private final RiskAssessmentRepository riskRepository;
     private final SecurityFindingRepository findingRepository;
+    private final ComboBox<Website> reportWebsiteSelect = new ComboBox<>("Select Target Website");
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -82,6 +86,16 @@ public class ReportsView extends VerticalLayout {
         add(header, subtitle, cards, statsPanel);
     }
 
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        List<Website> websites = websiteService.getAllWebsites();
+        reportWebsiteSelect.setItems(websites);
+        WebsiteSelection.resolve(event, websites).ifPresent(id -> websites.stream()
+                .filter(w -> w.getId().equals(id))
+                .findFirst()
+                .ifPresent(reportWebsiteSelect::setValue));
+    }
+
     private HorizontalLayout createDownloadCards() {
         HorizontalLayout layout = new HorizontalLayout();
         layout.setWidthFull();
@@ -99,7 +113,7 @@ public class ReportsView extends VerticalLayout {
         pdfTitle.getStyle().set("margin-top", "0");
         Paragraph pdfDesc = new Paragraph("Inspect or download a formal single-domain PDF audit report featuring TLS handshake configuration, X.509 certificate hierarchy, and risk remediations.");
 
-        ComboBox<Website> websiteSelect = new ComboBox<>("Select Target Website");
+        ComboBox<Website> websiteSelect = reportWebsiteSelect;
         websiteSelect.setItemLabelGenerator(Website::getDomain);
         websiteSelect.setWidthFull();
         List<Website> websites = websiteService.getAllWebsites();
@@ -107,6 +121,11 @@ public class ReportsView extends VerticalLayout {
         if (!websites.isEmpty()) {
             websiteSelect.setValue(websites.get(0));
         }
+        websiteSelect.addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                WebsiteSelection.remember(e.getValue().getId());
+            }
+        });
 
         Button viewPdfBtn = new Button("View PDF Report", VaadinIcon.EYE.create(), e -> {
             Website site = websiteSelect.getValue();

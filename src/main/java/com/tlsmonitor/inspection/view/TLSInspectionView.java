@@ -7,6 +7,7 @@ import com.tlsmonitor.inspection.service.ScanOrchestratorService;
 import com.tlsmonitor.inspection.service.TLSInspectionService;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.service.WebsiteService;
+import com.tlsmonitor.common.view.WebsiteSelection;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
@@ -53,7 +54,7 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
         H2 header = new H2("🔍 TLS Certificate & Configuration Inspector");
         header.getStyle().set("margin-top", "0");
-        Paragraph subtitle = new Paragraph("Connects directly to remote endpoints over port 443 using Java JSSE, evaluates TLS protocol negotiations, and validates X.509 certificate chains.");
+        Paragraph subtitle = new Paragraph("Connects directly to each website over its configured port using Java JSSE, evaluates TLS protocol negotiations, and validates X.509 certificate chains.");
         subtitle.getStyle().set("color", "#64748b");
 
         HorizontalLayout selectorRow = createSelectorRow();
@@ -82,6 +83,7 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
         websiteSelect.addValueChangeListener(e -> {
             if (e.getValue() != null) {
+                WebsiteSelection.remember(e.getValue().getId());
                 loadWebsiteHistory(e.getValue().getId());
             }
         });
@@ -96,6 +98,7 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
         historyGrid.setHeight("250px");
         historyGrid.setWidthFull();
 
+        historyGrid.addColumn(r -> r.getDomain() + ":" + r.getPort()).setHeader("Target").setAutoWidth(true);
         historyGrid.addColumn(r -> r.getScannedAt() != null ? r.getScannedAt().format(DATE_FORMATTER) : "").setHeader("Scan Time").setAutoWidth(true);
         historyGrid.addColumn(TLSScanResult::getConnectionStatus).setHeader("Status").setWidth("120px");
         historyGrid.addColumn(TLSScanResult::getTlsVersion).setHeader("TLS Version").setWidth("120px");
@@ -141,7 +144,7 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
         card.getStyle().set("padding", "1.5rem");
         card.getStyle().set("box-shadow", "0 1px 3px rgba(0,0,0,0.05)");
 
-        H3 statusTitle = new H3("Scan Findings for " + scan.getDomain() + " (" + scan.getConnectionStatus() + ")");
+        H3 statusTitle = new H3("Scan Findings for " + scan.getDomain() + ":" + scan.getPort() + " (" + scan.getConnectionStatus() + ")");
         statusTitle.getStyle().set("margin-top", "0");
 
         HorizontalLayout badges = new HorizontalLayout();
@@ -224,18 +227,13 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        List<String> params = event.getLocation().getQueryParameters().getParameters().get("websiteId");
-        if (params != null && !params.isEmpty()) {
-            try {
-                Long websiteId = Long.parseLong(params.get(0));
-                websiteService.getAllWebsites().stream()
-                        .filter(w -> w.getId().equals(websiteId))
-                        .findFirst()
-                        .ifPresent(w -> {
-                            websiteSelect.setValue(w);
-                            loadWebsiteHistory(w.getId());
-                        });
-            } catch (NumberFormatException ignored) {}
-        }
+        List<Website> websites = websiteService.getAllWebsites();
+        WebsiteSelection.resolve(event, websites).ifPresent(id -> websites.stream()
+                .filter(w -> w.getId().equals(id))
+                .findFirst()
+                .ifPresent(w -> {
+                    websiteSelect.setValue(w);
+                    loadWebsiteHistory(w.getId());
+                }));
     }
 }
