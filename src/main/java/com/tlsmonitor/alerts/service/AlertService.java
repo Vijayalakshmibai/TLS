@@ -48,12 +48,22 @@ public class AlertService {
             if (cert.isExpired()) {
                 createDeduplicatedAlert(websiteId, domain, "EXPIRED", "CRITICAL",
                         "SSL/TLS certificate for " + domain + " has expired! Service is currently degraded or inaccessible.", newAlerts);
-            } else if (cert.getDaysRemaining() <= 7) {
-                createDeduplicatedAlert(websiteId, domain, "EXPIRY_WARNING_7D", "CRITICAL",
-                        "Certificate for " + domain + " expires in " + cert.getDaysRemaining() + " days. Immediate renewal required.", newAlerts);
-            } else if (cert.getDaysRemaining() <= 30) {
-                createDeduplicatedAlert(websiteId, domain, "EXPIRY_WARNING_30D", "HIGH",
-                        "Certificate for " + domain + " expires in " + cert.getDaysRemaining() + " days. Renewal scheduled.", newAlerts);
+            } else {
+                resolveActiveAlerts(websiteId, "EXPIRED");
+
+                if (cert.getDaysRemaining() <= 7) {
+                    createDeduplicatedAlert(websiteId, domain, "EXPIRY_WARNING_7D", "CRITICAL",
+                            "Certificate for " + domain + " expires in " + cert.getDaysRemaining() + " days. Immediate renewal required.", newAlerts);
+                } else {
+                    resolveActiveAlerts(websiteId, "EXPIRY_WARNING_7D");
+
+                    if (cert.getDaysRemaining() <= 30) {
+                        createDeduplicatedAlert(websiteId, domain, "EXPIRY_WARNING_30D", "HIGH",
+                                "Certificate for " + domain + " expires in " + cert.getDaysRemaining() + " days. Renewal scheduled.", newAlerts);
+                    } else {
+                        resolveActiveAlerts(websiteId, "EXPIRY_WARNING_30D");
+                    }
+                }
             }
         }
 
@@ -61,18 +71,24 @@ public class AlertService {
         if (!scan.isHostnameValid()) {
             createDeduplicatedAlert(websiteId, domain, "HOSTNAME_MISMATCH", "HIGH",
                     "Certificate hostname mismatch detected for " + domain + ". Certificate does not cover this endpoint.", newAlerts);
+        } else {
+            resolveActiveAlerts(websiteId, "HOSTNAME_MISMATCH");
         }
 
         // 3. Untrusted Root / Broken Chain
         if (!scan.isTrustChainValid()) {
             createDeduplicatedAlert(websiteId, domain, "UNTRUSTED_CHAIN", "CRITICAL",
                     "Certificate trust validation failed for " + domain + ": " + scan.getTrustError(), newAlerts);
+        } else {
+            resolveActiveAlerts(websiteId, "UNTRUSTED_CHAIN");
         }
 
         // 4. Critical Overall Risk
         if (risk != null && "CRITICAL".equalsIgnoreCase(risk.getRiskLevel())) {
             createDeduplicatedAlert(websiteId, domain, "CRITICAL_RISK", "CRITICAL",
                     "Target " + domain + " received a CRITICAL security risk score of " + risk.getTotalScore() + "/100.", newAlerts);
+        } else {
+            resolveActiveAlerts(websiteId, "CRITICAL_RISK");
         }
 
         // Send notifications for generated alerts
@@ -102,6 +118,17 @@ public class AlertService {
             log.info("Created new alert ID {}: type={}, domain={}, severity={}", saved.getId(), alertType, domain, severity);
         } else {
             log.debug("Deduplicated alert for domain={}, type={} (already pending or sent)", domain, alertType);
+        }
+    }
+
+    public void resolveActiveAlerts(Long websiteId, String alertType) {
+        List<Alert> activeAlerts = alertRepository.findByWebsiteIdAndAlertTypeAndStatusNot(websiteId, alertType, "RESOLVED");
+        for (Alert alert : activeAlerts) {
+            alert.setStatus("RESOLVED");
+            alert.setResolvedAt(LocalDateTime.now());
+            alertRepository.save(alert);
+            log.info("Auto-resolved active alert ID {} (type={}, websiteId={}) because security condition has been remediated.",
+                    alert.getId(), alertType, websiteId);
         }
     }
 

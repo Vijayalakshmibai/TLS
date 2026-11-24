@@ -9,12 +9,15 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
@@ -25,7 +28,7 @@ import java.util.List;
 @Route(value = "alerts", layout = MainLayout.class)
 @PageTitle("Security Alerts | Fresh TLS Monitor")
 @PermitAll
-public class AlertsView extends VerticalLayout {
+public class AlertsView extends VerticalLayout implements BeforeEnterObserver {
 
     private final AlertService alertService;
     private final Grid<Alert> grid = new Grid<>(Alert.class, false);
@@ -51,6 +54,11 @@ public class AlertsView extends VerticalLayout {
         updateAlertsList();
     }
 
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        updateAlertsList();
+    }
+
     private HorizontalLayout createToolbar() {
         statusFilter.setLabel("Filter by Alert Status");
         statusFilter.setItems("ALL", "PENDING", "SENT", "ACKNOWLEDGED", "RESOLVED");
@@ -58,7 +66,10 @@ public class AlertsView extends VerticalLayout {
         statusFilter.setWidth("220px");
         statusFilter.addValueChangeListener(e -> updateAlertsList());
 
-        HorizontalLayout toolbar = new HorizontalLayout(statusFilter);
+        Button refreshBtn = new Button("Refresh Alerts", VaadinIcon.REFRESH.create(), e -> updateAlertsList());
+        refreshBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        HorizontalLayout toolbar = new HorizontalLayout(statusFilter, refreshBtn);
         toolbar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.END);
         return toolbar;
     }

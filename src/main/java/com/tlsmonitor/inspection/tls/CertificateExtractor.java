@@ -1,8 +1,10 @@
 package com.tlsmonitor.inspection.tls;
 
 import com.tlsmonitor.inspection.entity.CertificateDetails;
+import com.tlsmonitor.risk.service.ExpiryChecker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.security.MessageDigest;
@@ -11,9 +13,9 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.DSAPublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -22,6 +24,19 @@ import java.util.List;
 public class CertificateExtractor {
 
     private static final Logger log = LoggerFactory.getLogger(CertificateExtractor.class);
+
+    private final ExpiryChecker expiryChecker;
+    private final Clock clock;
+
+    public CertificateExtractor() {
+        this(new ExpiryChecker(Clock.systemUTC()), Clock.systemUTC());
+    }
+
+    @Autowired
+    public CertificateExtractor(ExpiryChecker expiryChecker, Clock clock) {
+        this.expiryChecker = expiryChecker != null ? expiryChecker : new ExpiryChecker(clock);
+        this.clock = clock != null ? clock : Clock.systemUTC();
+    }
 
     public CertificateDetails extractDetails(X509Certificate cert, Long scanId, Long websiteId, int chainLength) {
         CertificateDetails details = new CertificateDetails();
@@ -37,14 +52,16 @@ public class CertificateExtractor {
         details.setIssuer(cert.getIssuerX500Principal().getName());
         details.setSerialNumber(cert.getSerialNumber().toString(16).toUpperCase());
 
+        LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
         LocalDateTime notBefore = cert.getNotBefore().toInstant().atZone(ZoneOffset.UTC).toLocalDateTime();
         LocalDateTime notAfter = cert.getNotAfter().toInstant().atZone(ZoneOffset.UTC).toLocalDateTime();
         details.setValidFrom(notBefore);
         details.setValidUntil(notAfter);
 
-        long daysRemaining = ChronoUnit.DAYS.between(LocalDateTime.now(ZoneOffset.UTC), notAfter);
+        long daysRemaining = expiryChecker.calculateRemainingDays(notAfter);
         details.setDaysRemaining(daysRemaining);
-        details.setExpired(daysRemaining < 0);
+        details.setExpired(now.isAfter(notAfter) || daysRemaining < 0);
+        details.setNotYetValid(now.isBefore(notBefore));
 
         details.setSignatureAlgorithm(cert.getSigAlgName());
         details.setPublicKeyAlgorithm(cert.getPublicKey().getAlgorithm());

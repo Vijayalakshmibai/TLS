@@ -32,6 +32,7 @@ public class CertificateDetails {
     private long daysRemaining;
 
     private boolean expired;
+    private boolean notYetValid;
 
     @Column(length = 100)
     private String signatureAlgorithm;
@@ -132,6 +133,14 @@ public class CertificateDetails {
 
     public void setExpired(boolean expired) {
         this.expired = expired;
+    }
+
+    public boolean isNotYetValid() {
+        return notYetValid;
+    }
+
+    public void setNotYetValid(boolean notYetValid) {
+        this.notYetValid = notYetValid;
     }
 
     public String getSignatureAlgorithm() {

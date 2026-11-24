@@ -114,6 +114,12 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.79</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -130,6 +136,12 @@
                     <execution>
                         <goals>
                             <goal>prepare-frontend</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>build-frontend</id>
+                        <phase>prepare-package</phase>
+                        <goals>
                             <goal>build-frontend</goal>
                         </goals>
                     </execution>

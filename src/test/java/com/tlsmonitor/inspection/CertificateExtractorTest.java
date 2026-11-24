@@ -67,9 +67,35 @@ class CertificateExtractorTest {
         assertEquals("RSA", details.getPublicKeyAlgorithm());
         assertEquals(2048, details.getKeySize());
         assertFalse(details.isExpired());
+        assertFalse(details.isNotYetValid());
         assertTrue(details.getDaysRemaining() > 0);
         assertFalse(details.isSelfSigned());
         assertNotNull(details.getSha256Fingerprint());
+    }
+
+    @Test
+    void testExtractDetailsFromNotYetValidCertificate() throws Exception {
+        X500Principal subject = new X500Principal("CN=future.example.com");
+        X500Principal issuer = new X500Principal("CN=DigiCert Global Root CA");
+        Date notBefore = Date.from(Instant.now().plus(10, ChronoUnit.DAYS));
+        Date notAfter = Date.from(Instant.now().plus(365, ChronoUnit.DAYS));
+
+        when(mockCert.getSubjectX500Principal()).thenReturn(subject);
+        when(mockCert.getIssuerX500Principal()).thenReturn(issuer);
+        when(mockCert.getSerialNumber()).thenReturn(BigInteger.TEN);
+        when(mockCert.getNotBefore()).thenReturn(notBefore);
+        when(mockCert.getNotAfter()).thenReturn(notAfter);
+        when(mockCert.getSigAlgName()).thenReturn("SHA256withRSA");
+        when(mockCert.getPublicKey()).thenReturn(mockRsaKey);
+        when(mockRsaKey.getAlgorithm()).thenReturn("RSA");
+        when(mockRsaKey.getModulus()).thenReturn(BigInteger.ONE.shiftLeft(2047));
+        when(mockCert.getEncoded()).thenReturn(new byte[]{0x01, 0x02});
+
+        CertificateDetails details = extractor.extractDetails(mockCert, 20L, 2L, 1);
+
+        assertNotNull(details);
+        assertTrue(details.isNotYetValid());
+        assertFalse(details.isExpired());
     }
 
     @Test

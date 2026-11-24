@@ -11,5 +11,6 @@ import java.util.Optional;
 public interface WebsiteRepository extends JpaRepository<Website, Long> {
     Optional<Website> findByDomain(String domain);
     boolean existsByDomain(String domain);
+    boolean existsByDomainIgnoreCase(String domain);
     List<Website> findByStatus(String status);
 }

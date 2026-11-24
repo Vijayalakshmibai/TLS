@@ -109,3 +109,17 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Setup production profile (`application-prod.properties`) and environment variable guidelines.
 - [x] Verify Maven production build (`mvn clean package`) and generate standalone executable JAR.
 - [x] Create comprehensive `README.md`, architecture docs, and database schema documentation.
+
+---
+
+## Acceptance Testing Matrix (TC-01 to TC-30)
+
+| Batch | Scope | Test Cases | Status | Automated Test Suite |
+| :--- | :--- | :--- | :---: | :--- |
+| **Batch 1** | Module 2: Certificate Validation | **TC-01 to TC-05** (Valid HTTPS, Expired, Self-Signed, Host Mismatch, Untrusted Chain) | ✅ PASS | `CertificateValidationScenariosTest` |
+| **Batch 2** | Module 3: Expiry Detection & Rules | **TC-06 to TC-10** (Expired, Critical ≤7d, High ≤14d, Medium ≤30d, Low ≤60d, Not Yet Valid) | ✅ PASS | `ExpiryClassificationScenariosTest` |
+| **Batch 3** | Module 2: Protocols & Cipher Probing | **TC-11 to TC-15** (TLS 1.0, 1.1, 1.2, 1.3 Detection & Weak Cipher Suite Evaluation) | ✅ PASS | `ProtocolAndCipherScenariosTest` |
+| **Batch 4** | Module 1: Validation & Anti-SSRF | **TC-16 to TC-20** (Input Validation, Private/Loopback Blocking, Cloud Metadata, DNS Rebinding, Redirect Safety) | ✅ PASS | `WebsiteValidationAndSsrfScenariosTest` |
+| **Batch 5** | Cross-Module: E2E Pipeline | **TC-21 to TC-25** (Inventory to Scan, Scan to Risk, Risk to Alert, DB Persistence, Deduplication & Auto-Resolution) | ✅ PASS | `SystemIntegrationScenariosTest` |
+| **Batch 6** | UI & Final Regression | **TC-26 to TC-30** (Login/Auth, Dashboard/Inventory UI, PDF/Excel Exports, Scheduler/Email, Full Regression) | ✅ PASS | `FinalDeliveryScenariosTest` |
+

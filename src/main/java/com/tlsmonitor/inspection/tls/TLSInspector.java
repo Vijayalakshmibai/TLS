@@ -13,6 +13,8 @@ import java.net.Socket;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 @Component
 public class TLSInspector {
@@ -23,10 +25,19 @@ public class TLSInspector {
 
     private final CertificateExtractor certificateExtractor;
     private final TLSConfigurationScanner configurationScanner;
+    private final com.tlsmonitor.inventory.service.WebsiteValidationService validationService;
 
     public TLSInspector(CertificateExtractor certificateExtractor, TLSConfigurationScanner configurationScanner) {
+        this(certificateExtractor, configurationScanner, new com.tlsmonitor.inventory.service.WebsiteValidationService(true));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TLSInspector(CertificateExtractor certificateExtractor,
+                        TLSConfigurationScanner configurationScanner,
+                        com.tlsmonitor.inventory.service.WebsiteValidationService validationService) {
         this.certificateExtractor = certificateExtractor;
         this.configurationScanner = configurationScanner;
+        this.validationService = validationService != null ? validationService : new com.tlsmonitor.inventory.service.WebsiteValidationService();
     }
 
     public record InspectionOutcome(TLSScanResult scanResult, CertificateDetails certificateDetails) {}
@@ -42,9 +53,18 @@ public class TLSInspector {
 
         CertificateDetails certDetails = null;
 
+        InetAddress addr;
         try {
-            InetAddress addr = InetAddress.getByName(domain);
+            addr = InetAddress.getByName(domain);
             scanResult.setResolvedIp(addr.getHostAddress());
+            if (!validationService.isAllowLoopback() || !addr.isLoopbackAddress()) {
+                validationService.validateIPAgainstSSRF(addr);
+            }
+        } catch (com.tlsmonitor.common.exception.SSRFSecurityException se) {
+            scanResult.setConnectionStatus("BLOCKED_SSRF");
+            scanResult.setTrustError(se.getMessage());
+            scanResult.setResponseTimeMs(System.currentTimeMillis() - startTime);
+            return new InspectionOutcome(scanResult, null);
         } catch (Exception e) {
             scanResult.setConnectionStatus("DNS_RESOLUTION_FAILED");
             scanResult.setTrustError("Could not resolve host: " + domain);
@@ -54,6 +74,7 @@ public class TLSInspector {
 
         // 1. Primary Handshake using Default JVM TrustStore (Validates Trust & Hostname)
         boolean trustValid = false;
+        boolean hostnameValid = false;
         String trustErrorMsg = null;
         SSLSession activeSession = null;
         X509Certificate[] certChain = null;
@@ -63,7 +84,7 @@ public class TLSInspector {
             SSLSocketFactory factory = defaultContext.getSocketFactory();
 
             try (Socket plainSocket = new Socket()) {
-                plainSocket.connect(new InetSocketAddress(domain, port), CONNECT_TIMEOUT_MS);
+                plainSocket.connect(new InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
                 try (SSLSocket sslSocket = (SSLSocket) factory.createSocket(plainSocket, domain, port, true)) {
                     sslSocket.setSoTimeout(SO_TIMEOUT_MS);
 
@@ -75,6 +96,7 @@ public class TLSInspector {
                     sslSocket.startHandshake();
                     activeSession = sslSocket.getSession();
                     trustValid = true;
+                    hostnameValid = true;
 
                     Certificate[] peerCerts = activeSession.getPeerCertificates();
                     if (peerCerts != null && peerCerts.length > 0) {
@@ -111,7 +133,7 @@ public class TLSInspector {
                 }}, new java.security.SecureRandom());
 
                 try (Socket plainSocket = new Socket()) {
-                    plainSocket.connect(new InetSocketAddress(domain, port), CONNECT_TIMEOUT_MS);
+                    plainSocket.connect(new InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
                     try (SSLSocket sslSocket = (SSLSocket) captiveContext.getSocketFactory().createSocket(plainSocket, domain, port, true)) {
                         sslSocket.setSoTimeout(SO_TIMEOUT_MS);
                         sslSocket.startHandshake();
@@ -136,17 +158,9 @@ public class TLSInspector {
             }
         }
 
-        // Check Hostname verification independently
-        boolean hostnameValid = false;
-        if (certChain != null && certChain.length > 0) {
-            try {
-                HostnameVerifier verifier = HttpsURLConnection.getDefaultHostnameVerifier();
-                if (activeSession != null) {
-                    hostnameValid = verifier.verify(domain, activeSession);
-                }
-            } catch (Exception e) {
-                hostnameValid = false;
-            }
+        // Check Hostname verification independently if not already established
+        if (!hostnameValid && certChain != null && certChain.length > 0) {
+            hostnameValid = verifyHostname(domain, certChain[0]);
         }
 
         scanResult.setTrustChainValid(trustValid);
@@ -176,7 +190,70 @@ public class TLSInspector {
             scanResult.setSupportedProtocols(scanResult.getTlsVersion());
         }
 
+        if (configurationScanner.isOutdatedProtocol(scanResult.getTlsVersion())) {
+            scanResult.setWeakProtocolDetected(true);
+        }
+
+        if (scanResult.getSupportedProtocols() == null || "None Detected".equalsIgnoreCase(scanResult.getSupportedProtocols())) {
+            if (scanResult.getTlsVersion() != null) {
+                scanResult.setSupportedProtocols(scanResult.getTlsVersion());
+            }
+        }
+
         scanResult.setResponseTimeMs(System.currentTimeMillis() - startTime);
         return new InspectionOutcome(scanResult, certDetails);
+    }
+
+    public boolean verifyHostname(String domain, X509Certificate cert) {
+        if (domain == null || cert == null) {
+            return false;
+        }
+        try {
+            Collection<List<?>> sans = cert.getSubjectAlternativeNames();
+            if (sans != null && !sans.isEmpty()) {
+                for (List<?> item : sans) {
+                    if (item.size() >= 2 && item.get(1) != null) {
+                        String san = item.get(1).toString().trim();
+                        if (matchHostname(domain, san)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            // Fallback to CN if no SANs present
+            String cn = extractCn(cert);
+            return cn != null && matchHostname(domain, cn);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean matchHostname(String host, String pattern) {
+        if (host.equalsIgnoreCase(pattern)) {
+            return true;
+        }
+        if (pattern.startsWith("*.")) {
+            String suffix = pattern.substring(1);
+            int firstDot = host.indexOf('.');
+            if (firstDot > 0) {
+                String hostSuffix = host.substring(firstDot);
+                return hostSuffix.equalsIgnoreCase(suffix);
+            }
+        }
+        return false;
+    }
+
+    private String extractCn(X509Certificate cert) {
+        try {
+            String dn = cert.getSubjectX500Principal().getName();
+            for (String part : dn.split(",")) {
+                String trimmed = part.trim();
+                if (trimmed.toUpperCase().startsWith("CN=")) {
+                    return trimmed.substring(3).trim();
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

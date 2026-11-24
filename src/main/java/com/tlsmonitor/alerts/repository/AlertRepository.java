@@ -11,6 +11,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     List<Alert> findByWebsiteIdOrderByCreatedAtDesc(Long websiteId);
     List<Alert> findAllByOrderByCreatedAtDesc();
     List<Alert> findByStatusOrderByCreatedAtDesc(String status);
+    List<Alert> findByWebsiteIdAndAlertTypeAndStatusNot(Long websiteId, String alertType, String status);
     boolean existsByWebsiteIdAndAlertTypeAndStatus(Long websiteId, String alertType, String status);
     long countByStatus(String status);
 }

@@ -35,12 +35,26 @@ public class CertificateExpiryRule implements RiskRule {
             return Collections.emptyList();
         }
 
-        long daysRemaining = expiryChecker.calculateRemainingDays(cert.getValidUntil());
-        ExpiryChecker.ExpiryCategory category = expiryChecker.categorize(daysRemaining);
-
         List<SecurityFinding> findings = new ArrayList<>();
         Long scanId = scan.getId() != null ? scan.getId() : 0L;
         Long websiteId = scan.getWebsiteId() != null ? scan.getWebsiteId() : 0L;
+
+        // Check if certificate is not yet valid (validity begins in the future)
+        if (cert.isNotYetValid() || (cert.getValidFrom() != null && expiryChecker.isNotYetValid(cert.getValidFrom()))) {
+            findings.add(new SecurityFinding(
+                    scanId, websiteId, "EXP_NOT_YET_VALID",
+                    "Certificate Not Yet Valid",
+                    "The X.509 certificate validity period begins in the future (" + cert.getValidFrom() + " UTC). Browsers and clients will reject connections until this date.",
+                    "CRITICAL", 40,
+                    "Valid From: " + cert.getValidFrom() + " (UTC)",
+                    "Verify system clock synchronization or wait until the certificate activation date before deploying."
+            ));
+        }
+
+        long daysRemaining = expiryChecker.calculateRemainingDays(cert.getValidUntil());
+        ExpiryChecker.ExpiryCategory category = (cert.isExpired() && daysRemaining >= 0)
+                ? ExpiryChecker.ExpiryCategory.EXPIRED
+                : expiryChecker.categorize(daysRemaining);
 
         switch (category) {
             case EXPIRED -> findings.add(new SecurityFinding(

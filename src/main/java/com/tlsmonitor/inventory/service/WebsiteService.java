@@ -33,7 +33,7 @@ public class WebsiteService {
 
         WebsiteValidationService.NormalizedTarget target = validationService.normalizeAndValidate(website.getDomain());
 
-        if (websiteRepository.existsByDomain(target.domain())) {
+        if (websiteRepository.existsByDomainIgnoreCase(target.domain())) {
             throw new IllegalArgumentException("Website with domain '" + target.domain() + "' is already registered in inventory.");
         }
 
