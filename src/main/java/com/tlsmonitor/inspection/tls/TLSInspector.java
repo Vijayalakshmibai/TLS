@@ -135,20 +135,24 @@ public class TLSInspector {
                     plainSocket.connect(new InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
                     try (SSLSocket sslSocket = (SSLSocket) captiveContext.getSocketFactory().createSocket(plainSocket, domain, port, true)) {
                         sslSocket.setSoTimeout(SO_TIMEOUT_MS);
-                        sslSocket.startHandshake();
-                        captureHandshakeCompleted = true;
-                        if (activeSession == null) {
-                            activeSession = sslSocket.getSession();
-                        }
-                        if (captured[0] != null && captured[0].length > 0) {
-                            certChain = captured[0];
-                        } else {
-                            Certificate[] peerCerts = sslSocket.getSession().getPeerCertificates();
-                            if (peerCerts != null) {
-                                certChain = new X509Certificate[peerCerts.length];
-                                for (int i = 0; i < peerCerts.length; i++) {
-                                    certChain[i] = (X509Certificate) peerCerts[i];
+                        try {
+                            sslSocket.startHandshake();
+                            captureHandshakeCompleted = true;
+                            if (activeSession == null) {
+                                activeSession = sslSocket.getSession();
+                            }
+                            if (captured[0] == null || captured[0].length == 0) {
+                                Certificate[] peerCerts = sslSocket.getSession().getPeerCertificates();
+                                if (peerCerts != null) {
+                                    captured[0] = new X509Certificate[peerCerts.length];
+                                    for (int i = 0; i < peerCerts.length; i++) {
+                                        captured[0][i] = (X509Certificate) peerCerts[i];
+                                    }
                                 }
+                            }
+                        } finally {
+                            if (captured[0] != null && captured[0].length > 0) {
+                                certChain = captured[0];
                             }
                         }
                     }

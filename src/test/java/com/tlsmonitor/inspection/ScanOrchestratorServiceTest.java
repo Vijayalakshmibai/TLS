@@ -16,6 +16,8 @@ import com.tlsmonitor.risk.service.RiskAnalyzer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -117,10 +119,11 @@ class ScanOrchestratorServiceTest {
         verify(websiteRepository).save(website);
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(strings = {"FAILED", "TIMEOUT", "CONNECTION_FAILED", "HANDSHAKE_FAILED"})
     @DisplayName("Should update website status to FAILED when TLS connection fails")
-    void shouldUpdateStatusToFailedWhenUnreachable() {
-        scanResult.setConnectionStatus("FAILED");
+    void shouldUpdateStatusToFailedWhenUnreachable(String connectionStatus) {
+        scanResult.setConnectionStatus(connectionStatus);
         RiskAssessment failedRisk = new RiskAssessment(1L, 10L, 50, "HIGH", 1);
 
         when(websiteService.getWebsiteById(10L)).thenReturn(website);

@@ -23,12 +23,17 @@ public class TestTlsServer implements AutoCloseable {
     }
 
     public TestTlsServer(SSLContext sslContext, String[] protocols, String[] cipherSuites) throws IOException {
+        this(sslContext, protocols, cipherSuites, false);
+    }
+
+    public TestTlsServer(SSLContext sslContext, String[] protocols, String[] cipherSuites,
+                        boolean needClientAuth) throws IOException {
         this.server = HttpsServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         this.server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
             @Override
             public void configure(HttpsParameters params) {
                 try {
-                    params.setNeedClientAuth(false);
+                    params.setNeedClientAuth(needClientAuth);
                     if (protocols != null && protocols.length > 0) {
                         params.setProtocols(protocols);
                     }
