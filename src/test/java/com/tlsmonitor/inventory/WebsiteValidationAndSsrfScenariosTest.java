@@ -1,5 +1,6 @@
 package com.tlsmonitor.inventory;
 
+import com.tlsmonitor.alerts.service.AlertService;
 import com.tlsmonitor.common.exception.InvalidDomainException;
 import com.tlsmonitor.common.exception.SSRFSecurityException;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
@@ -46,6 +47,9 @@ public class WebsiteValidationAndSsrfScenariosTest {
     @Mock
     private WebsiteRepository websiteRepository;
 
+    @Mock
+    private AlertService alertService;
+
     private CertificateExtractor certificateExtractor;
     private TLSConfigurationScanner configurationScanner;
     private WebsiteService websiteService;
@@ -56,7 +60,7 @@ public class WebsiteValidationAndSsrfScenariosTest {
         validationService = new WebsiteValidationService();
         certificateExtractor = new CertificateExtractor();
         configurationScanner = new TLSConfigurationScanner();
-        websiteService = new WebsiteService(websiteRepository, validationService);
+        websiteService = new WebsiteService(websiteRepository, validationService, alertService);
         tlsInspector = new TLSInspector(certificateExtractor, configurationScanner, validationService);
     }
 

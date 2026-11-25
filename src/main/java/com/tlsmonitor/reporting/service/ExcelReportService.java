@@ -79,8 +79,8 @@ public class ExcelReportService {
                 row.createCell(1).setCellValue(sanitize(s.getConnectionStatus()));
                 row.createCell(2).setCellValue(sanitize(s.getTlsVersion()));
                 row.createCell(3).setCellValue(sanitize(s.getCipherSuite()));
-                row.createCell(4).setCellValue(s.isHostnameValid() ? "VALID" : "MISMATCH");
-                row.createCell(5).setCellValue(s.isTrustChainValid() ? "TRUSTED" : "UNTRUSTED");
+                row.createCell(4).setCellValue(s.getHostnameValidationStatus().name());
+                row.createCell(5).setCellValue(s.getTrustValidationStatus().name());
                 row.createCell(6).setCellValue(sanitize(s.getSupportedProtocols()));
                 row.createCell(7).setCellValue(s.getResponseTimeMs());
                 row.createCell(8).setCellValue(s.getScannedAt() != null ? s.getScannedAt().format(FORMATTER) : "");

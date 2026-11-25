@@ -3,6 +3,7 @@ package com.tlsmonitor.inspection.view;
 import com.tlsmonitor.dashboard.view.MainLayout;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.entity.ValidationStatus;
 import com.tlsmonitor.inspection.service.ScanOrchestratorService;
 import com.tlsmonitor.inspection.service.TLSInspectionService;
 import com.tlsmonitor.inventory.entity.Website;
@@ -103,8 +104,8 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
         historyGrid.addColumn(TLSScanResult::getConnectionStatus).setHeader("Status").setWidth("120px");
         historyGrid.addColumn(TLSScanResult::getTlsVersion).setHeader("TLS Version").setWidth("120px");
         historyGrid.addColumn(TLSScanResult::getCipherSuite).setHeader("Cipher Suite").setAutoWidth(true);
-        historyGrid.addColumn(r -> r.isHostnameValid() ? "VALID" : "MISMATCH").setHeader("Hostname").setWidth("110px");
-        historyGrid.addColumn(r -> r.isTrustChainValid() ? "TRUSTED" : "UNTRUSTED").setHeader("Trust Chain").setWidth("110px");
+        historyGrid.addColumn(r -> formatValidationStatus(r.getHostnameValidationStatus())).setHeader("Hostname").setWidth("110px");
+        historyGrid.addColumn(r -> formatValidationStatus(r.getTrustValidationStatus())).setHeader("Trust Chain").setWidth("110px");
         historyGrid.addColumn(r -> r.getResponseTimeMs() + " ms").setHeader("Latency").setWidth("100px");
     }
 
@@ -152,8 +153,8 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
         badges.add(createBadge("Protocol: " + scan.getTlsVersion(), scan.getTlsVersion() != null ? "#1e40af" : "#991b1b", "#eff6ff"));
         badges.add(createBadge("Cipher: " + scan.getCipherSuite(), "#15803d", "#f0fdf4"));
-        badges.add(createBadge("Hostname: " + (scan.isHostnameValid() ? "Verified Match" : "Mismatch"), scan.isHostnameValid() ? "#15803d" : "#b91c1c", scan.isHostnameValid() ? "#f0fdf4" : "#fef2f2"));
-        badges.add(createBadge("Trust Chain: " + (scan.isTrustChainValid() ? "Trusted Root" : "Untrusted"), scan.isTrustChainValid() ? "#15803d" : "#b91c1c", scan.isTrustChainValid() ? "#f0fdf4" : "#fef2f2"));
+        badges.add(validationBadge("Hostname", scan.getHostnameValidationStatus(), "Verified Match", "Mismatch"));
+        badges.add(validationBadge("Trust Chain", scan.getTrustValidationStatus(), "Trusted Root", "Untrusted"));
         badges.add(createBadge("Latency: " + scan.getResponseTimeMs() + " ms", "#475569", "#f1f5f9"));
 
         if (scan.isWeakProtocolDetected()) {
@@ -212,6 +213,20 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
         badge.getStyle().set("font-size", "0.85rem");
         badge.getStyle().set("font-weight", "600");
         return badge;
+    }
+
+    private Span validationBadge(String label, ValidationStatus status, String validText, String invalidText) {
+        String text = status == ValidationStatus.VALID ? validText
+                : status == ValidationStatus.INVALID ? invalidText : "Not Evaluated";
+        String color = status == ValidationStatus.NOT_EVALUATED ? "#475569"
+                : status == ValidationStatus.VALID ? "#15803d" : "#b91c1c";
+        String background = status == ValidationStatus.NOT_EVALUATED ? "#f1f5f9"
+                : status == ValidationStatus.VALID ? "#f0fdf4" : "#fef2f2";
+        return createBadge(label + ": " + text, color, background);
+    }
+
+    private String formatValidationStatus(ValidationStatus status) {
+        return status == null ? "NOT EVALUATED" : status.name().replace('_', ' ');
     }
 
     private void loadWebsiteHistory(Long websiteId) {

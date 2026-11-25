@@ -63,12 +63,13 @@ public class DashboardView extends VerticalLayout {
         Paragraph subtitle = new Paragraph("Real-time monitoring of SSL/TLS certificates, cipher suites, expiration deadlines, and cryptographic risks.");
         subtitle.getStyle().set("color", "#64748b");
 
-        HorizontalLayout statCards = createStatisticsRow();
+        List<Website> websites = websiteRepository.findAll();
+        HorizontalLayout statCards = createStatisticsRow(websites);
 
         Div alertNotice = createAlertNotificationBanner();
 
         H3 gridTitle = new H3("Monitored Targets & Cryptographic Health");
-        Grid<Website> recentGrid = createRecentGrid();
+        Grid<Website> recentGrid = createRecentGrid(websites);
 
         add(title, subtitle, statCards);
         if (alertNotice != null) {
@@ -77,15 +78,34 @@ public class DashboardView extends VerticalLayout {
         add(gridTitle, recentGrid);
     }
 
-    private HorizontalLayout createStatisticsRow() {
+    private HorizontalLayout createStatisticsRow(List<Website> websites) {
         HorizontalLayout layout = new HorizontalLayout();
         layout.setWidthFull();
         layout.setSpacing(true);
 
-        long totalWebsites = websiteRepository.count();
-        long secureSites = riskRepository.countByRiskLevel("LOW");
-        long criticalRisks = riskRepository.countByRiskLevel("CRITICAL") + riskRepository.countByRiskLevel("HIGH");
-        long expiringSoon = certRepository.countExpiringSoon(30);
+        long totalWebsites = websites.size();
+        long secureSites = 0;
+        long criticalRisks = 0;
+        long expiringSoon = 0;
+        for (Website website : websites) {
+            RiskAssessment latestRisk = riskRepository.findFirstByWebsiteIdOrderByAssessedAtDesc(website.getId())
+                    .orElse(null);
+            if (latestRisk != null) {
+                if ("LOW".equalsIgnoreCase(latestRisk.getRiskLevel())) {
+                    secureSites++;
+                } else if ("CRITICAL".equalsIgnoreCase(latestRisk.getRiskLevel())
+                        || "HIGH".equalsIgnoreCase(latestRisk.getRiskLevel())) {
+                    criticalRisks++;
+                }
+            }
+
+            CertificateDetails latestCertificate = certRepository.findFirstByWebsiteIdOrderByIdDesc(website.getId())
+                    .orElse(null);
+            if (latestCertificate != null && !latestCertificate.isExpired()
+                    && latestCertificate.getDaysRemaining() <= 30) {
+                expiringSoon++;
+            }
+        }
 
         layout.add(createCard("Monitored Websites", String.valueOf(totalWebsites), VaadinIcon.GLOBE, "#2563eb", "#eff6ff"));
         layout.add(createCard("Secure Endpoints", String.valueOf(secureSites), VaadinIcon.CHECK_CIRCLE, "#16a34a", "#f0fdf4"));
@@ -114,7 +134,7 @@ public class DashboardView extends VerticalLayout {
         row.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         row.setWidthFull();
 
-        Span text = new Span("⚠️ Attention: " + activeAlerts + " active security alert(s) require review (expired certificates, broken chains, or weak ciphers).");
+        Span text = new Span("⚠️ Attention: " + activeAlerts + " active security alert(s) require review.");
         text.getStyle().set("color", "#991b1b");
         text.getStyle().set("font-weight", "600");
 
@@ -126,7 +146,7 @@ public class DashboardView extends VerticalLayout {
         return banner;
     }
 
-    private Grid<Website> createRecentGrid() {
+    private Grid<Website> createRecentGrid(List<Website> websites) {
         Grid<Website> grid = new Grid<>(Website.class, false);
         grid.setWidthFull();
         grid.setHeight("350px");
@@ -189,7 +209,6 @@ public class DashboardView extends VerticalLayout {
             return actions;
         }).setHeader("Quick Actions").setAutoWidth(true);
 
-        List<Website> websites = websiteRepository.findAll();
         grid.setItems(websites);
 
         return grid;

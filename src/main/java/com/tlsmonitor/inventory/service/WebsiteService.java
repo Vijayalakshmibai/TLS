@@ -2,6 +2,7 @@ package com.tlsmonitor.inventory.service;
 
 import com.tlsmonitor.common.exception.InvalidDomainException;
 import com.tlsmonitor.common.exception.ResourceNotFoundException;
+import com.tlsmonitor.alerts.service.AlertService;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.repository.WebsiteRepository;
 import org.slf4j.Logger;
@@ -19,10 +20,14 @@ public class WebsiteService {
 
     private final WebsiteRepository websiteRepository;
     private final WebsiteValidationService validationService;
+    private final AlertService alertService;
 
-    public WebsiteService(WebsiteRepository websiteRepository, WebsiteValidationService validationService) {
+    public WebsiteService(WebsiteRepository websiteRepository,
+                          WebsiteValidationService validationService,
+                          AlertService alertService) {
         this.websiteRepository = websiteRepository;
         this.validationService = validationService;
+        this.alertService = alertService;
     }
 
     @Transactional
@@ -84,6 +89,7 @@ public class WebsiteService {
     @Transactional
     public void deleteWebsite(Long id) {
         Website website = getWebsiteById(id);
+        alertService.resolveActiveAlertsForWebsite(id);
         websiteRepository.delete(website);
         log.info("Deleted website ID {}: domain={}", id, website.getDomain());
     }

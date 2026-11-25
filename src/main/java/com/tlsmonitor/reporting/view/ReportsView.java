@@ -219,8 +219,8 @@ public class ReportsView extends VerticalLayout implements BeforeEnterObserver {
         scanGrid.addColumn(TLSScanResult::getConnectionStatus).setHeader("Status").setWidth("110px");
         scanGrid.addColumn(TLSScanResult::getTlsVersion).setHeader("Negotiated TLS").setWidth("120px");
         scanGrid.addColumn(TLSScanResult::getCipherSuite).setHeader("Cipher Suite").setAutoWidth(true);
-        scanGrid.addColumn(s -> s.isHostnameValid() ? "MATCH" : "MISMATCH").setHeader("Hostname").setWidth("110px");
-        scanGrid.addColumn(s -> s.isTrustChainValid() ? "TRUSTED" : "UNTRUSTED").setHeader("Trust Chain").setWidth("110px");
+        scanGrid.addColumn(s -> s.getHostnameValidationStatus().name().replace('_', ' ')).setHeader("Hostname").setWidth("110px");
+        scanGrid.addColumn(s -> s.getTrustValidationStatus().name().replace('_', ' ')).setHeader("Trust Chain").setWidth("110px");
         scanGrid.addColumn(s -> s.getResponseTimeMs() + " ms").setHeader("Latency").setWidth("100px");
         scanGrid.setItems(scanRepository.findAll());
         tabSheet.add("3. TLS Inspections", scanGrid);

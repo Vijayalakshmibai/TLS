@@ -61,8 +61,8 @@ public class AlertsView extends VerticalLayout implements BeforeEnterObserver {
 
     private HorizontalLayout createToolbar() {
         statusFilter.setLabel("Filter by Alert Status");
-        statusFilter.setItems("ALL", "PENDING", "SENT", "ACKNOWLEDGED", "RESOLVED");
-        statusFilter.setValue("ALL");
+        statusFilter.setItems("ACTIVE", "ALL", "PENDING", "SENT", "ACKNOWLEDGED", "RESOLVED");
+        statusFilter.setValue("ACTIVE");
         statusFilter.setWidth("220px");
         statusFilter.addValueChangeListener(e -> updateAlertsList());
 
@@ -147,7 +147,11 @@ public class AlertsView extends VerticalLayout implements BeforeEnterObserver {
     private void updateAlertsList() {
         List<Alert> alerts = alertService.getAllAlerts();
         String filter = statusFilter.getValue();
-        if (filter != null && !"ALL".equalsIgnoreCase(filter)) {
+        if ("ACTIVE".equalsIgnoreCase(filter)) {
+            alerts = alerts.stream()
+                    .filter(a -> "PENDING".equalsIgnoreCase(a.getStatus()) || "SENT".equalsIgnoreCase(a.getStatus()))
+                    .toList();
+        } else if (filter != null && !"ALL".equalsIgnoreCase(filter)) {
             alerts = alerts.stream().filter(a -> a.getStatus().equalsIgnoreCase(filter)).toList();
         }
         grid.setItems(alerts);

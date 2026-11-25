@@ -251,7 +251,8 @@ public class WebsiteView extends VerticalLayout {
 
         Button deleteBtn = new Button("Delete", e -> {
             websiteService.deleteWebsite(website.getId());
-            Notification.show("Website removed from inventory.", 3000, Notification.Position.TOP_CENTER);
+            Notification.show("Website removed from inventory; its active alerts were resolved.",
+                    3000, Notification.Position.TOP_CENTER);
             dialog.close();
             updateList();
         });

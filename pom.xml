@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.3</version>
+        <version>3.4.13</version>
         <relativePath/>
     </parent>
 
@@ -18,10 +18,12 @@
     <description>Fresh TLS Certificate Monitoring and Web Security Analysis Tool</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <vaadin.version>24.6.5</vaadin.version>
         <openpdf.version>2.0.3</openpdf.version>
         <poi.version>5.3.0</poi.version>
+        <mockito.version>5.24.0</mockito.version>
+        <byte-buddy.version>1.18.17-jdk5</byte-buddy.version>
     </properties>
 
     <dependencyManagement>
