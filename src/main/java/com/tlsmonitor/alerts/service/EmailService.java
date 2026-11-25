@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
+    private static final String SENDER_DISPLAY_NAME = "Haresh";
 
     private final JavaMailSender mailSender;
     private final String mailUsername;
@@ -49,7 +50,7 @@ public class EmailService {
 
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(mailUsername);
+            message.setFrom(SENDER_DISPLAY_NAME + " <" + mailUsername + ">");
             message.setTo(recipient);
             message.setSubject("🚨 [" + alert.getSeverity() + "] TLS Security Alert: " + alert.getDomain());
             message.setText("Fresh TLS Certificate Monitoring & Security Alert\n\n" +
@@ -86,7 +87,7 @@ public class EmailService {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-            helper.setFrom(mailUsername);
+            helper.setFrom(mailUsername, SENDER_DISPLAY_NAME);
             helper.setTo(recipient);
             helper.setSubject("[" + alert.getSeverity() + "] TLS Security PDF Report: " + alert.getDomain());
             helper.setText(
