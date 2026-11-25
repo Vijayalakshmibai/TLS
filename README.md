@@ -82,7 +82,23 @@ Remove-Item Env:SPRING_PROFILES_ACTIVE -ErrorAction SilentlyContinue
 java -jar target/tls-monitor-1.0.0-SNAPSHOT.jar
 ```
 
-### 5. Access the Application
+### 5. Build and Run with Docker
+Build the production image from the repository root:
+```powershell
+docker build -t tls-monitor .
+```
+
+Run it with a PostgreSQL database reachable from the container. Set `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` for your deployment; do not use the example password in production.
+```powershell
+docker run --name tls-monitor -p 8085:8085 `
+  -e DB_URL=jdbc:postgresql://host.docker.internal:5432/tls_monitoring_db `
+  -e DB_USERNAME=postgres `
+  -e DB_PASSWORD=your-database-password `
+  tls-monitor
+```
+The application listens on port `8085` and runs with authentication enabled. For deployments where the database is not on the Docker host, use its reachable hostname or address in `DB_URL`.
+
+### 6. Access the Application
 - Local preview URL: **http://localhost:8085**
 - Default Administrator Credentials:
   - **Username:** `admin`

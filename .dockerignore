@@ -1,0 +1,10 @@
+.git
+.gitignore
+.vscode
+target
+src/main/bundles
+node_modules
+**/node_modules
+*.log
+.env
+.env.*
