@@ -70,7 +70,10 @@ public class ScanOrchestratorService {
         List<Alert> alerts = alertService.processScanAlerts(website, scan, cert, risk);
 
         // Step 4: Update Website status based on findings & scan outcome
-        if ("FAILED".equalsIgnoreCase(scan.getConnectionStatus()) || "TIMEOUT".equalsIgnoreCase(scan.getConnectionStatus())) {
+        if ("FAILED".equalsIgnoreCase(scan.getConnectionStatus())
+                || "TIMEOUT".equalsIgnoreCase(scan.getConnectionStatus())
+                || "CONNECTION_FAILED".equalsIgnoreCase(scan.getConnectionStatus())
+                || "HANDSHAKE_FAILED".equalsIgnoreCase(scan.getConnectionStatus())) {
             website.setStatus("FAILED");
         } else if ("CRITICAL".equalsIgnoreCase(risk.getRiskLevel())) {
             website.setStatus("CRITICAL");

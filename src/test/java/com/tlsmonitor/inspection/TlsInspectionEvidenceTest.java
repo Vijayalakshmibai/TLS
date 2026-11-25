@@ -9,13 +9,25 @@ import com.tlsmonitor.inspection.tls.TLSInspector;
 import com.tlsmonitor.inventory.service.WebsiteValidationService;
 import com.tlsmonitor.risk.rules.HostnameMismatchRule;
 import com.tlsmonitor.risk.rules.UntrustedChainRule;
+import com.tlsmonitor.testutil.CertificateTestUtils;
+import com.tlsmonitor.testutil.TestTlsServer;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.KeyPair;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.net.ssl.SSLContext;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,10 +41,7 @@ class TlsInspectionEvidenceTest {
             resetServer.setDaemon(true);
             resetServer.start();
 
-            TLSInspector inspector = new TLSInspector(
-                    new CertificateExtractor(),
-                    new TLSConfigurationScanner(),
-                    new WebsiteValidationService(true));
+            TLSInspector inspector = createInspector();
 
             TLSInspector.InspectionOutcome outcome = inspector.inspect(1L, "127.0.0.1", server.getLocalPort());
 
@@ -49,6 +58,39 @@ class TlsInspectionEvidenceTest {
         }
     }
 
+    @Test
+    void certificateIsRetainedWhenHandshakeFailsAfterTrustManagerCapture() throws Exception {
+        KeyPair serverKeyPair = CertificateTestUtils.generateRsaKeyPair();
+        X509Certificate serverCertificate = CertificateTestUtils.generateSelfSignedCertificate(
+                "CN=127.0.0.1",
+                serverKeyPair,
+                Date.from(Instant.now().minus(1, ChronoUnit.DAYS)),
+                Date.from(Instant.now().plus(30, ChronoUnit.DAYS)),
+                List.of("127.0.0.1"));
+        KeyStore serverKeyStore = CertificateTestUtils.createKeyStore(
+                serverKeyPair.getPrivate(),
+                new Certificate[]{serverCertificate},
+                "server",
+                "changeit".toCharArray());
+        SSLContext serverContext = CertificateTestUtils.createServerSslContext(
+                serverKeyStore, "changeit".toCharArray());
+
+        try (TestTlsServer server = new TestTlsServer(
+                serverContext, new String[]{"TLSv1.2"}, null, true)) {
+            TLSInspector inspector = createInspector();
+
+            TLSInspector.InspectionOutcome outcome =
+                    inspector.inspect(1L, "127.0.0.1", server.getPort());
+
+            assertNotNull(outcome.certificateDetails(),
+                    "The peer certificate should remain available after the server rejects the missing client certificate.");
+            assertEquals("HANDSHAKE_FAILED", outcome.scanResult().getConnectionStatus());
+            assertEquals(ValidationStatus.INVALID,
+                    outcome.scanResult().getTrustValidationStatus());
+            assertTrue(outcome.certificateDetails().getSubject().contains("127.0.0.1"));
+        }
+    }
+
     private void acceptAndReset(ServerSocket server, AtomicBoolean accepting) {
         while (accepting.get()) {
             try (Socket ignored = server.accept()) {
@@ -60,5 +102,18 @@ class TlsInspectionEvidenceTest {
                 return;
             }
         }
+    }
+
+    private TLSInspector createInspector() {
+        TLSConfigurationScanner scanner = new TLSConfigurationScanner() {
+            @Override
+            public ProtocolScanReport probeProtocols(String host, int port) {
+                return new ProtocolScanReport("TLSv1.2", false);
+            }
+        };
+        return new TLSInspector(
+                new CertificateExtractor(),
+                scanner,
+                new WebsiteValidationService(true));
     }
 }
