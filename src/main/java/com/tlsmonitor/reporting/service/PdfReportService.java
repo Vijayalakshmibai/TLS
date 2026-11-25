@@ -6,6 +6,7 @@ import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.entity.ValidationStatus;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.risk.entity.RiskAssessment;
 import com.tlsmonitor.risk.entity.SecurityFinding;
@@ -73,8 +74,11 @@ public class PdfReportService {
             addTableRow(tlsTable, "Connection Status:", scan.getConnectionStatus(), boldFont, normalFont);
             addTableRow(tlsTable, "Negotiated TLS Version:", scan.getTlsVersion() != null ? scan.getTlsVersion() : "N/A", boldFont, normalFont);
             addTableRow(tlsTable, "Negotiated Cipher Suite:", scan.getCipherSuite() != null ? scan.getCipherSuite() : "N/A", boldFont, normalFont);
-            addTableRow(tlsTable, "Hostname Validation:", scan.isHostnameValid() ? "PASS (Matches Domain)" : "FAIL (Hostname Mismatch)", boldFont, normalFont);
-            addTableRow(tlsTable, "Trust Chain Validation:", scan.isTrustChainValid() ? "PASS (Trusted Root CA)" : "FAIL (" + scan.getTrustError() + ")", boldFont, normalFont);
+            addTableRow(tlsTable, "Hostname Validation:", formatValidationStatus(
+                    scan.getHostnameValidationStatus(), "PASS (Matches Domain)", "FAIL (Hostname Mismatch)"), boldFont, normalFont);
+            addTableRow(tlsTable, "Trust Chain Validation:", formatValidationStatus(
+                    scan.getTrustValidationStatus(), "PASS (Trusted Root CA)",
+                    "FAIL (" + (scan.getTrustError() != null ? scan.getTrustError() : "Untrusted certificate chain") + ")"), boldFont, normalFont);
             addTableRow(tlsTable, "Supported Protocols:", scan.getSupportedProtocols() != null ? scan.getSupportedProtocols() : "N/A", boldFont, normalFont);
             addTableRow(tlsTable, "Handshake Latency:", scan.getResponseTimeMs() + " ms", boldFont, normalFont);
         } else {
@@ -155,6 +159,13 @@ public class PdfReportService {
         c2.setPadding(4);
         table.addCell(c1);
         table.addCell(c2);
+    }
+
+    private String formatValidationStatus(ValidationStatus status, String validText, String invalidText) {
+        if (status == null || status == ValidationStatus.NOT_EVALUATED) {
+            return "NOT EVALUATED";
+        }
+        return status == ValidationStatus.VALID ? validText : invalidText;
     }
 
     private void addTableHeader(PdfPTable table, String title, Font font) {

@@ -7,7 +7,7 @@ import com.tlsmonitor.alerts.service.EmailService;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
 import com.tlsmonitor.inventory.entity.Website;
-import com.tlsmonitor.inventory.service.WebsiteService;
+import com.tlsmonitor.inventory.repository.WebsiteRepository;
 import com.tlsmonitor.risk.entity.RiskAssessment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,7 +36,7 @@ class AlertServiceTest {
     private EmailService emailService;
 
     @Mock
-    private WebsiteService websiteService;
+    private WebsiteRepository websiteRepository;
 
     @InjectMocks
     private AlertService alertService;
@@ -123,5 +123,41 @@ class AlertServiceTest {
         Alert resolved = alertService.resolveAlert(42L);
         assertEquals("RESOLVED", resolved.getStatus());
         assertNotNull(resolved.getResolvedAt());
+    }
+
+    @Test
+    @DisplayName("Should resolve active alerts when a website is removed")
+    void shouldResolveAlertsForDeletedWebsite() {
+        Alert pending = new Alert(100L, "critical-site.example.com", "CRITICAL_RISK", "CRITICAL", "Critical risk");
+        Alert acknowledged = new Alert(100L, "critical-site.example.com", "HOSTNAME_MISMATCH", "HIGH", "Mismatch");
+        acknowledged.setStatus("ACKNOWLEDGED");
+        when(alertRepository.findByWebsiteIdAndStatusNot(100L, "RESOLVED"))
+                .thenReturn(List.of(pending, acknowledged));
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        alertService.resolveActiveAlertsForWebsite(100L);
+
+        assertEquals("RESOLVED", pending.getStatus());
+        assertNotNull(pending.getResolvedAt());
+        assertEquals("RESOLVED", acknowledged.getStatus());
+        assertNotNull(acknowledged.getResolvedAt());
+        verify(alertRepository, times(2)).save(any(Alert.class));
+    }
+
+    @Test
+    @DisplayName("Should auto-resolve alerts for websites already removed from inventory")
+    void shouldResolveOrphanedAlertsWhenCountingActiveAlerts() {
+        Alert orphaned = new Alert(100L, "deleted.example.com", "CRITICAL_RISK", "CRITICAL", "Critical risk");
+        when(websiteRepository.findAll()).thenReturn(List.of());
+        when(alertRepository.findByStatusNot("RESOLVED")).thenReturn(List.of(orphaned));
+        when(alertRepository.countByStatus("PENDING")).thenReturn(0L);
+        when(alertRepository.countByStatus("SENT")).thenReturn(0L);
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertEquals(0, alertService.countActiveAlerts());
+
+        assertEquals("RESOLVED", orphaned.getStatus());
+        assertNotNull(orphaned.getResolvedAt());
+        verify(alertRepository).save(orphaned);
     }
 }

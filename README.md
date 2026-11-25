@@ -6,8 +6,8 @@ A professional, full-stack Java platform for cybersecurity and web infrastructur
 
 ## 🛠 Technology Stack
 
-- **Runtime & Language**: Java 21 LTS (Temurin OpenJDK)
-- **Framework**: Spring Boot 3.4.3 / Vaadin Flow 24.6.5
+- **Runtime & Language**: Java 25 LTS (Microsoft OpenJDK)
+- **Framework**: Spring Boot 3.4.13 / Vaadin Flow 24.6.5
 - **Security & Auth**: Spring Security 6.x (BCrypt password hashing, session protection, route guards)
 - **TLS Inspection Engine**: Native Java JSSE (`SSLSocket`, `SSLContext`, `SSLSession`, `SSLParameters`)
 - **Certificate Analysis**: Java Cryptography & X.509 API (`X509Certificate`, `MessageDigest`, `CertificateFactory`)
@@ -59,21 +59,31 @@ A professional, full-stack Java platform for cybersecurity and web infrastructur
 ## 🚀 Quick Start Guide
 
 ### 1. Prerequisites
-- **Java 21 LTS** or later.
+- **Java 25 LTS** or later.
 - **PostgreSQL 17** running on `localhost:5432` with database `tls_monitoring_db`.
+- The default datasource uses database `tls_monitoring_db`, user `postgres`, and an empty password. Override with `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` when needed.
 
-### 2. Run in Development Mode
+### 2. Run a Local Preview (No Login)
+This profile disables the login only for a server bound to `127.0.0.1`. Normal runs keep authentication enabled.
 ```powershell
+$env:SPRING_CONFIG_LOCATION = "classpath:/"
+$env:SPRING_PROFILES_ACTIVE = "local-preview"
 .\mvnw.cmd spring-boot:run
 ```
 
-### 3. Run Built Standalone Production JAR
+### 3. Run with Authentication Enabled
+```powershell
+Remove-Item Env:SPRING_PROFILES_ACTIVE -ErrorAction SilentlyContinue
+.\mvnw.cmd spring-boot:run
+```
+
+### 4. Run Built Standalone Production JAR
 ```powershell
 java -jar target/tls-monitor-1.0.0-SNAPSHOT.jar
 ```
 
-### 4. Access the Application
-- URL: **http://localhost:8080**
+### 5. Access the Application
+- Local preview URL: **http://localhost:8085**
 - Default Administrator Credentials:
   - **Username:** `admin`
   - **Password:** `admin123`

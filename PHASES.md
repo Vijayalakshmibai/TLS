@@ -9,7 +9,7 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 | Phase | Description | Status | Deliverable Gate |
 |---|---|---|---|
 | **Phase 0** | Requirement Confirmation & Planning | ✅ Completed | Requirements, safe scan policy, and repo baseline documented |
-| **Phase 1** | Verified Development Environment | ✅ Completed | JDK 21/25, Maven, PostgreSQL, and Git verified |
+| **Phase 1** | Verified Development Environment | ✅ Completed | JDK 25, Maven, PostgreSQL, and Git verified |
 | **Phase 2** | Spring Boot + Vaadin Runnable Baseline | ✅ Completed | Clean project compiles, starts, and displays Vaadin UI |
 | **Phase 3** | Database Connectivity & Persistence | ✅ Completed | PostgreSQL connection and JPA test pass |
 | **Phase 4** | Package Structure, Common Models & Error Handling | ✅ Completed | Clean architecture, DTOs, domain models, and error handling |
@@ -35,7 +35,7 @@ This checklist tracks the implementation progress of the **Fresh TLS Certificate
 - [x] Initialize Git repository.
 
 ### Phase 1: Environment Setup & Tool Verification
-- [x] Java JDK verified (OpenJDK 21.0.12.1 LTS).
+- [x] Java JDK verified (OpenJDK 25 LTS).
 - [x] Apache Maven 3.9.9 installed and verified on PATH.
 - [x] Git verified (`git version 2.55.0.windows.3`).
 - [x] PostgreSQL 17 downloaded, initialized, and verified running on port 5432.

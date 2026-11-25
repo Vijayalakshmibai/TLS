@@ -9,10 +9,12 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
+import org.springframework.context.annotation.Profile;
 
 @Route("login")
 @PageTitle("Login | Fresh TLS Monitor")
 @AnonymousAllowed
+@Profile("!local-preview")
 public class LoginView extends VerticalLayout implements BeforeEnterObserver {
 
     private final LoginForm loginForm = new LoginForm();
