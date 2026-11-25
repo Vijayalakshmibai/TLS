@@ -6,9 +6,12 @@ import com.tlsmonitor.alerts.service.AlertService;
 import com.tlsmonitor.alerts.service.EmailService;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.repository.CertificateDetailsRepository;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.repository.WebsiteRepository;
+import com.tlsmonitor.reporting.service.PdfReportService;
 import com.tlsmonitor.risk.entity.RiskAssessment;
+import com.tlsmonitor.risk.service.RiskReportResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -159,5 +162,75 @@ class AlertServiceTest {
         assertEquals("RESOLVED", orphaned.getStatus());
         assertNotNull(orphaned.getResolvedAt());
         verify(alertRepository).save(orphaned);
+    }
+
+    @Test
+    @DisplayName("Should generate PDF report, email backend recipient, and record SENT status")
+    void shouldSendAlertPdfReportAndRecordSuccess() throws Exception {
+        CertificateDetailsRepository certRepo = mock(CertificateDetailsRepository.class);
+        RiskReportResolver riskResolver = mock(RiskReportResolver.class);
+        PdfReportService pdfService = mock(PdfReportService.class);
+        AlertService service = new AlertService(
+                alertRepository,
+                emailService,
+                websiteRepository,
+                certRepo,
+                riskResolver,
+                pdfService,
+                "vijayalakshmibai0686@gmail.com"
+        );
+
+        Alert alert = new Alert(100L, "critical-site.example.com", "CRITICAL_RISK", "CRITICAL", "Score 85");
+        alert.setId(77L);
+
+        when(alertRepository.findById(77L)).thenReturn(Optional.of(alert));
+        when(websiteRepository.findById(100L)).thenReturn(Optional.of(website));
+        when(riskResolver.resolve(100L)).thenReturn(Optional.empty());
+        when(certRepo.findFirstByWebsiteIdOrderByIdDesc(100L)).thenReturn(Optional.of(certDetails));
+        when(pdfService.generateWebsiteReport(eq(website), isNull(), eq(certDetails), isNull(), eq(List.of())))
+                .thenReturn("%PDF-test".getBytes());
+        when(emailService.sendPdfReportEmail(eq("vijayalakshmibai0686@gmail.com"), eq(alert), any(), eq("TLS_Security_Report_critical-site.example.com.pdf")))
+                .thenReturn(true);
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertTrue(service.sendAlertPdfReport(77L));
+        assertEquals("SENT", alert.getReportDeliveryStatus());
+        assertNotNull(alert.getReportSentAt());
+        assertEquals("SENT", alert.getStatus());
+    }
+
+    @Test
+    @DisplayName("Should record FAILED status when PDF email delivery fails")
+    void shouldRecordFailedStatusWhenPdfEmailFails() throws Exception {
+        CertificateDetailsRepository certRepo = mock(CertificateDetailsRepository.class);
+        RiskReportResolver riskResolver = mock(RiskReportResolver.class);
+        PdfReportService pdfService = mock(PdfReportService.class);
+        AlertService service = new AlertService(
+                alertRepository,
+                emailService,
+                websiteRepository,
+                certRepo,
+                riskResolver,
+                pdfService,
+                "vijayalakshmibai0686@gmail.com"
+        );
+
+        Alert alert = new Alert(100L, "critical-site.example.com", "CRITICAL_RISK", "CRITICAL", "Score 85");
+        alert.setId(78L);
+
+        when(alertRepository.findById(78L)).thenReturn(Optional.of(alert));
+        when(websiteRepository.findById(100L)).thenReturn(Optional.of(website));
+        when(riskResolver.resolve(100L)).thenReturn(Optional.empty());
+        when(certRepo.findFirstByWebsiteIdOrderByIdDesc(100L)).thenReturn(Optional.empty());
+        when(pdfService.generateWebsiteReport(eq(website), isNull(), isNull(), isNull(), eq(List.of())))
+                .thenReturn("%PDF-test".getBytes());
+        when(emailService.sendPdfReportEmail(eq("vijayalakshmibai0686@gmail.com"), eq(alert), any(), anyString()))
+                .thenReturn(false);
+        when(alertRepository.save(any(Alert.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertFalse(service.sendAlertPdfReport(78L));
+        assertEquals("FAILED", alert.getReportDeliveryStatus());
+        assertNull(alert.getReportSentAt());
+        assertEquals("PENDING", alert.getStatus());
     }
 }

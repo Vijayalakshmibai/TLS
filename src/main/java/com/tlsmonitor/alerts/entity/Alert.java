@@ -34,6 +34,10 @@ public class Alert {
 
     private LocalDateTime sentAt;
     private LocalDateTime resolvedAt;
+    private LocalDateTime reportSentAt;
+
+    @Column(length = 30)
+    private String reportDeliveryStatus;
 
     public Alert() {
         this.createdAt = LocalDateTime.now();
@@ -128,5 +132,21 @@ public class Alert {
 
     public void setResolvedAt(LocalDateTime resolvedAt) {
         this.resolvedAt = resolvedAt;
+    }
+
+    public LocalDateTime getReportSentAt() {
+        return reportSentAt;
+    }
+
+    public void setReportSentAt(LocalDateTime reportSentAt) {
+        this.reportSentAt = reportSentAt;
+    }
+
+    public String getReportDeliveryStatus() {
+        return reportDeliveryStatus;
+    }
+
+    public void setReportDeliveryStatus(String reportDeliveryStatus) {
+        this.reportDeliveryStatus = reportDeliveryStatus;
     }
 }

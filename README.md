@@ -94,6 +94,8 @@ docker run --name tls-monitor -p 8085:8085 `
   -e DB_URL=jdbc:postgresql://host.docker.internal:5432/tls_monitoring_db `
   -e DB_USERNAME=postgres `
   -e DB_PASSWORD=your-database-password `
+  -e MAIL_USERNAME=vijayalakshmibai0686@gmail.com `
+  -e MAIL_APP_PASSWORD=your-16-char-app-password `
   tls-monitor
 ```
 The application listens on port `8085` and runs with authentication enabled. For deployments where the database is not on the Docker host, use its reachable hostname or address in `DB_URL`.

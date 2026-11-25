@@ -6,11 +6,18 @@ import com.tlsmonitor.common.exception.ResourceNotFoundException;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
 import com.tlsmonitor.inspection.entity.ValidationStatus;
+import com.tlsmonitor.inspection.repository.CertificateDetailsRepository;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.repository.WebsiteRepository;
+import com.tlsmonitor.reporting.service.PdfReportService;
 import com.tlsmonitor.risk.entity.RiskAssessment;
+import com.tlsmonitor.risk.entity.SecurityFinding;
+import com.tlsmonitor.risk.service.RiskReportResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,13 +35,32 @@ public class AlertService {
     private final AlertRepository alertRepository;
     private final EmailService emailService;
     private final WebsiteRepository websiteRepository;
+    private final CertificateDetailsRepository certRepository;
+    private final RiskReportResolver riskReportResolver;
+    private final PdfReportService pdfReportService;
+    private final String reportRecipient;
+
+    @Autowired
+    public AlertService(AlertRepository alertRepository,
+                        EmailService emailService,
+                        WebsiteRepository websiteRepository,
+                        CertificateDetailsRepository certRepository,
+                        @Lazy RiskReportResolver riskReportResolver,
+                        PdfReportService pdfReportService,
+                        @Value("${app.alerts.report-recipient:vijayalakshmibai0686@gmail.com}") String reportRecipient) {
+        this.alertRepository = alertRepository;
+        this.emailService = emailService;
+        this.websiteRepository = websiteRepository;
+        this.certRepository = certRepository;
+        this.riskReportResolver = riskReportResolver;
+        this.pdfReportService = pdfReportService;
+        this.reportRecipient = reportRecipient;
+    }
 
     public AlertService(AlertRepository alertRepository,
                         EmailService emailService,
                         WebsiteRepository websiteRepository) {
-        this.alertRepository = alertRepository;
-        this.emailService = emailService;
-        this.websiteRepository = websiteRepository;
+        this(alertRepository, emailService, websiteRepository, null, null, null, "vijayalakshmibai0686@gmail.com");
     }
 
     @Transactional
@@ -174,6 +200,50 @@ public class AlertService {
         alert.setStatus("RESOLVED");
         alert.setResolvedAt(LocalDateTime.now());
         return alertRepository.save(alert);
+    }
+
+    /**
+     * Generates a PDF security report for the alert's website and emails it to the
+     * configured backend recipient. Records delivery status and timestamp on the alert.
+     */
+    @Transactional
+    public boolean sendAlertPdfReport(Long alertId) {
+        Alert alert = alertRepository.findById(alertId)
+                .orElseThrow(() -> new ResourceNotFoundException("Alert not found with ID: " + alertId));
+
+        Website website = websiteRepository.findById(alert.getWebsiteId())
+                .orElseThrow(() -> new ResourceNotFoundException("Website not found with ID: " + alert.getWebsiteId()));
+
+        RiskReportResolver.ResolvedRisk resolved = (riskReportResolver != null)
+                ? riskReportResolver.resolve(website.getId()).orElse(null)
+                : null;
+        TLSScanResult scan = (resolved != null) ? resolved.scan() : null;
+        CertificateDetails cert = (resolved != null) ? resolved.certificate()
+                : (certRepository != null ? certRepository.findFirstByWebsiteIdOrderByIdDesc(website.getId()).orElse(null) : null);
+        RiskAssessment risk = (resolved != null) ? resolved.assessment() : null;
+        List<SecurityFinding> findings = (resolved != null) ? resolved.findings() : List.of();
+
+        boolean sent = false;
+        try {
+            byte[] pdfBytes = pdfReportService.generateWebsiteReport(website, scan, cert, risk, findings);
+            String fileName = "TLS_Security_Report_" + website.getDomain() + ".pdf";
+            sent = emailService.sendPdfReportEmail(reportRecipient, alert, pdfBytes, fileName);
+        } catch (Exception e) {
+            log.error("Failed to generate or email PDF report for alert ID {} ({}): {}",
+                    alertId, website.getDomain(), e.getMessage(), e);
+        }
+
+        alert.setReportDeliveryStatus(sent ? "SENT" : "FAILED");
+        if (sent) {
+            LocalDateTime now = LocalDateTime.now();
+            alert.setReportSentAt(now);
+            if ("PENDING".equalsIgnoreCase(alert.getStatus())) {
+                alert.setStatus("SENT");
+                alert.setSentAt(now);
+            }
+        }
+        alertRepository.save(alert);
+        return sent;
     }
 
     @Transactional

@@ -120,25 +120,40 @@ public class AlertsView extends VerticalLayout implements BeforeEnterObserver {
 
         grid.addColumn(a -> a.getCreatedAt() != null ? a.getCreatedAt().format(DATE_FORMATTER) : "").setHeader("Created At").setAutoWidth(true);
 
+        grid.addColumn(a -> {
+            if (a.getReportDeliveryStatus() == null) {
+                return "Not Sent";
+            }
+            String ts = a.getReportSentAt() != null ? " (" + a.getReportSentAt().format(DATE_FORMATTER) + ")" : "";
+            return a.getReportDeliveryStatus() + ts;
+        }).setHeader("Report Delivery").setAutoWidth(true);
+
         grid.addComponentColumn(alert -> {
-            Button ackBtn = new Button("Acknowledge", e -> {
-                alertService.acknowledgeAlert(alert.getId());
-                Notification.show("Alert marked as Acknowledged.", 3000, Notification.Position.TOP_CENTER);
-                updateAlertsList();
+            Button sendReportBtn = new Button("Send PDF Report", VaadinIcon.ENVELOPE.create());
+            sendReportBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_PRIMARY);
+            sendReportBtn.setDisableOnClick(true);
+            sendReportBtn.addClickListener(e -> {
+                sendReportBtn.setText("Sending...");
+                try {
+                    boolean sent = alertService.sendAlertPdfReport(alert.getId());
+                    if (sent) {
+                        Notification.show("PDF security report sent successfully via Gmail SMTP.", 4000, Notification.Position.TOP_CENTER)
+                                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    } else {
+                        Notification.show("Failed to send PDF report. Verify MAIL_USERNAME and MAIL_APP_PASSWORD.", 5000, Notification.Position.TOP_CENTER)
+                                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    }
+                } catch (Exception ex) {
+                    Notification.show("Error sending PDF report: " + ex.getMessage(), 5000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                } finally {
+                    sendReportBtn.setText("Send PDF Report");
+                    sendReportBtn.setEnabled(true);
+                    updateAlertsList();
+                }
             });
-            ackBtn.addThemeVariants(ButtonVariant.LUMO_SMALL);
-            ackBtn.setEnabled(!"ACKNOWLEDGED".equalsIgnoreCase(alert.getStatus()) && !"RESOLVED".equalsIgnoreCase(alert.getStatus()));
 
-            Button resolveBtn = new Button("Resolve", e -> {
-                alertService.resolveAlert(alert.getId());
-                Notification.show("Alert marked as Resolved.", 3000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                updateAlertsList();
-            });
-            resolveBtn.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_SUCCESS);
-            resolveBtn.setEnabled(!"RESOLVED".equalsIgnoreCase(alert.getStatus()));
-
-            HorizontalLayout actions = new HorizontalLayout(ackBtn, resolveBtn);
+            HorizontalLayout actions = new HorizontalLayout(sendReportBtn);
             actions.setSpacing(true);
             return actions;
         }).setHeader("Actions").setAutoWidth(true);

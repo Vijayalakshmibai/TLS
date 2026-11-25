@@ -13,4 +13,6 @@ ENV SERVER_PORT=8085
 EXPOSE 8085
 USER 10001:10001
 
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+# Respect Railway's dynamic PORT if set, otherwise fall back to SERVER_PORT (8085).
+# Provide DB_URL, DB_USERNAME, DB_PASSWORD, MAIL_USERNAME, and MAIL_APP_PASSWORD at runtime.
+ENTRYPOINT ["sh", "-c", "java -XX:MaxRAMPercentage=75.0 -Dserver.port=${PORT:-${SERVER_PORT:-8085}} -jar /app/app.jar"]
