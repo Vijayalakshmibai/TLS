@@ -3,10 +3,12 @@ package com.tlsmonitor.inspection.view;
 import com.tlsmonitor.dashboard.view.MainLayout;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.entity.ValidationStatus;
 import com.tlsmonitor.inspection.service.ScanOrchestratorService;
 import com.tlsmonitor.inspection.service.TLSInspectionService;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.service.WebsiteService;
+import com.tlsmonitor.common.view.WebsiteSelection;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
@@ -53,7 +55,7 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
         H2 header = new H2("🔍 TLS Certificate & Configuration Inspector");
         header.getStyle().set("margin-top", "0");
-        Paragraph subtitle = new Paragraph("Connects directly to remote endpoints over port 443 using Java JSSE, evaluates TLS protocol negotiations, and validates X.509 certificate chains.");
+        Paragraph subtitle = new Paragraph("Connects directly to each website over its configured port using Java JSSE, evaluates TLS protocol negotiations, and validates X.509 certificate chains.");
         subtitle.getStyle().set("color", "#64748b");
 
         HorizontalLayout selectorRow = createSelectorRow();
@@ -82,6 +84,7 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
         websiteSelect.addValueChangeListener(e -> {
             if (e.getValue() != null) {
+                WebsiteSelection.remember(e.getValue().getId());
                 loadWebsiteHistory(e.getValue().getId());
             }
         });
@@ -96,12 +99,13 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
         historyGrid.setHeight("250px");
         historyGrid.setWidthFull();
 
+        historyGrid.addColumn(r -> r.getDomain() + ":" + r.getPort()).setHeader("Target").setAutoWidth(true);
         historyGrid.addColumn(r -> r.getScannedAt() != null ? r.getScannedAt().format(DATE_FORMATTER) : "").setHeader("Scan Time").setAutoWidth(true);
         historyGrid.addColumn(TLSScanResult::getConnectionStatus).setHeader("Status").setWidth("120px");
         historyGrid.addColumn(TLSScanResult::getTlsVersion).setHeader("TLS Version").setWidth("120px");
         historyGrid.addColumn(TLSScanResult::getCipherSuite).setHeader("Cipher Suite").setAutoWidth(true);
-        historyGrid.addColumn(r -> r.isHostnameValid() ? "VALID" : "MISMATCH").setHeader("Hostname").setWidth("110px");
-        historyGrid.addColumn(r -> r.isTrustChainValid() ? "TRUSTED" : "UNTRUSTED").setHeader("Trust Chain").setWidth("110px");
+        historyGrid.addColumn(r -> formatValidationStatus(r.getHostnameValidationStatus())).setHeader("Hostname").setWidth("110px");
+        historyGrid.addColumn(r -> formatValidationStatus(r.getTrustValidationStatus())).setHeader("Trust Chain").setWidth("110px");
         historyGrid.addColumn(r -> r.getResponseTimeMs() + " ms").setHeader("Latency").setWidth("100px");
     }
 
@@ -141,7 +145,7 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
         card.getStyle().set("padding", "1.5rem");
         card.getStyle().set("box-shadow", "0 1px 3px rgba(0,0,0,0.05)");
 
-        H3 statusTitle = new H3("Scan Findings for " + scan.getDomain() + " (" + scan.getConnectionStatus() + ")");
+        H3 statusTitle = new H3("Scan Findings for " + scan.getDomain() + ":" + scan.getPort() + " (" + scan.getConnectionStatus() + ")");
         statusTitle.getStyle().set("margin-top", "0");
 
         HorizontalLayout badges = new HorizontalLayout();
@@ -149,8 +153,8 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
         badges.add(createBadge("Protocol: " + scan.getTlsVersion(), scan.getTlsVersion() != null ? "#1e40af" : "#991b1b", "#eff6ff"));
         badges.add(createBadge("Cipher: " + scan.getCipherSuite(), "#15803d", "#f0fdf4"));
-        badges.add(createBadge("Hostname: " + (scan.isHostnameValid() ? "Verified Match" : "Mismatch"), scan.isHostnameValid() ? "#15803d" : "#b91c1c", scan.isHostnameValid() ? "#f0fdf4" : "#fef2f2"));
-        badges.add(createBadge("Trust Chain: " + (scan.isTrustChainValid() ? "Trusted Root" : "Untrusted"), scan.isTrustChainValid() ? "#15803d" : "#b91c1c", scan.isTrustChainValid() ? "#f0fdf4" : "#fef2f2"));
+        badges.add(validationBadge("Hostname", scan.getHostnameValidationStatus(), "Verified Match", "Mismatch"));
+        badges.add(validationBadge("Trust Chain", scan.getTrustValidationStatus(), "Trusted Root", "Untrusted"));
         badges.add(createBadge("Latency: " + scan.getResponseTimeMs() + " ms", "#475569", "#f1f5f9"));
 
         if (scan.isWeakProtocolDetected()) {
@@ -211,6 +215,20 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
         return badge;
     }
 
+    private Span validationBadge(String label, ValidationStatus status, String validText, String invalidText) {
+        String text = status == ValidationStatus.VALID ? validText
+                : status == ValidationStatus.INVALID ? invalidText : "Not Evaluated";
+        String color = status == ValidationStatus.NOT_EVALUATED ? "#475569"
+                : status == ValidationStatus.VALID ? "#15803d" : "#b91c1c";
+        String background = status == ValidationStatus.NOT_EVALUATED ? "#f1f5f9"
+                : status == ValidationStatus.VALID ? "#f0fdf4" : "#fef2f2";
+        return createBadge(label + ": " + text, color, background);
+    }
+
+    private String formatValidationStatus(ValidationStatus status) {
+        return status == null ? "NOT EVALUATED" : status.name().replace('_', ' ');
+    }
+
     private void loadWebsiteHistory(Long websiteId) {
         List<TLSScanResult> history = inspectionService.getScanHistory(websiteId);
         historyGrid.setItems(history);
@@ -224,18 +242,13 @@ public class TLSInspectionView extends VerticalLayout implements BeforeEnterObse
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        List<String> params = event.getLocation().getQueryParameters().getParameters().get("websiteId");
-        if (params != null && !params.isEmpty()) {
-            try {
-                Long websiteId = Long.parseLong(params.get(0));
-                websiteService.getAllWebsites().stream()
-                        .filter(w -> w.getId().equals(websiteId))
-                        .findFirst()
-                        .ifPresent(w -> {
-                            websiteSelect.setValue(w);
-                            loadWebsiteHistory(w.getId());
-                        });
-            } catch (NumberFormatException ignored) {}
-        }
+        List<Website> websites = websiteService.getAllWebsites();
+        WebsiteSelection.resolve(event, websites).ifPresent(id -> websites.stream()
+                .filter(w -> w.getId().equals(id))
+                .findFirst()
+                .ifPresent(w -> {
+                    websiteSelect.setValue(w);
+                    loadWebsiteHistory(w.getId());
+                }));
     }
 }

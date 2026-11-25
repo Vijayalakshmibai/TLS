@@ -1,5 +1,6 @@
 package com.tlsmonitor.inventory;
 
+import com.tlsmonitor.alerts.service.AlertService;
 import com.tlsmonitor.common.exception.ResourceNotFoundException;
 import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.inventory.repository.WebsiteRepository;
@@ -27,11 +28,14 @@ class WebsiteServiceTest {
     @Mock
     private WebsiteValidationService validationService;
 
+    @Mock
+    private AlertService alertService;
+
     private WebsiteService websiteService;
 
     @BeforeEach
     void setUp() {
-        websiteService = new WebsiteService(websiteRepository, validationService);
+        websiteService = new WebsiteService(websiteRepository, validationService, alertService);
     }
 
     @Test
@@ -98,6 +102,7 @@ class WebsiteServiceTest {
         when(websiteRepository.findById(1L)).thenReturn(Optional.of(existing));
 
         websiteService.deleteWebsite(1L);
+        verify(alertService).resolveActiveAlertsForWebsite(1L);
         verify(websiteRepository).delete(existing);
     }
 }

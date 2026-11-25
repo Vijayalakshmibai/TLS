@@ -6,6 +6,8 @@ import com.tlsmonitor.inventory.entity.Website;
 import com.tlsmonitor.reporting.service.PdfReportService;
 import com.tlsmonitor.risk.entity.RiskAssessment;
 import com.tlsmonitor.risk.entity.SecurityFinding;
+import com.lowagie.text.pdf.PdfReader;
+import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -90,5 +92,28 @@ class PdfReportServiceTest {
         assertEquals('P', (char) pdfBytes[1]);
         assertEquals('D', (char) pdfBytes[2]);
         assertEquals('F', (char) pdfBytes[3]);
+    }
+
+    @Test
+    @DisplayName("Should report unavailable TLS validations as not evaluated")
+    void shouldMarkUnavailableValidationAsNotEvaluated() throws Exception {
+        Website website = new Website("reset.test", "https://reset.test", "Connection reset before TLS certificate");
+        website.setId(3L);
+
+        TLSScanResult scan = new TLSScanResult();
+        scan.setWebsiteId(3L);
+        scan.setDomain("reset.test");
+        scan.setConnectionStatus("CONNECTION_FAILED");
+
+        byte[] pdfBytes = pdfReportService.generateWebsiteReport(website, scan, null, null, Collections.emptyList());
+        PdfReader reader = new PdfReader(pdfBytes);
+        String reportText = new PdfTextExtractor(reader).getTextFromPage(1);
+        reader.close();
+
+        assertTrue(reportText.contains("Hostname Validation:"));
+        assertTrue(reportText.contains("Trust Chain Validation:"));
+        assertEquals(2, reportText.split("NOT EVALUATED", -1).length - 1);
+        assertFalse(reportText.contains("FAIL (Hostname Mismatch)"));
+        assertFalse(reportText.contains("FAIL (Untrusted certificate chain)"));
     }
 }

@@ -5,8 +5,9 @@ import com.tlsmonitor.alerts.repository.AlertRepository;
 import com.tlsmonitor.common.exception.ResourceNotFoundException;
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.entity.ValidationStatus;
 import com.tlsmonitor.inventory.entity.Website;
-import com.tlsmonitor.inventory.service.WebsiteService;
+import com.tlsmonitor.inventory.repository.WebsiteRepository;
 import com.tlsmonitor.risk.entity.RiskAssessment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class AlertService {
@@ -24,12 +27,14 @@ public class AlertService {
 
     private final AlertRepository alertRepository;
     private final EmailService emailService;
-    private final WebsiteService websiteService;
+    private final WebsiteRepository websiteRepository;
 
-    public AlertService(AlertRepository alertRepository, EmailService emailService, WebsiteService websiteService) {
+    public AlertService(AlertRepository alertRepository,
+                        EmailService emailService,
+                        WebsiteRepository websiteRepository) {
         this.alertRepository = alertRepository;
         this.emailService = emailService;
-        this.websiteService = websiteService;
+        this.websiteRepository = websiteRepository;
     }
 
     @Transactional
@@ -68,18 +73,18 @@ public class AlertService {
         }
 
         // 2. Hostname Mismatch
-        if (!scan.isHostnameValid()) {
+        if (cert != null && scan.getHostnameValidationStatus() == ValidationStatus.INVALID) {
             createDeduplicatedAlert(websiteId, domain, "HOSTNAME_MISMATCH", "HIGH",
                     "Certificate hostname mismatch detected for " + domain + ". Certificate does not cover this endpoint.", newAlerts);
-        } else {
+        } else if (scan.getHostnameValidationStatus() == ValidationStatus.VALID) {
             resolveActiveAlerts(websiteId, "HOSTNAME_MISMATCH");
         }
 
         // 3. Untrusted Root / Broken Chain
-        if (!scan.isTrustChainValid()) {
+        if (cert != null && scan.getTrustValidationStatus() == ValidationStatus.INVALID) {
             createDeduplicatedAlert(websiteId, domain, "UNTRUSTED_CHAIN", "CRITICAL",
                     "Certificate trust validation failed for " + domain + ": " + scan.getTrustError(), newAlerts);
-        } else {
+        } else if (scan.getTrustValidationStatus() == ValidationStatus.VALID) {
             resolveActiveAlerts(websiteId, "UNTRUSTED_CHAIN");
         }
 
@@ -132,7 +137,21 @@ public class AlertService {
         }
     }
 
+    @Transactional
+    public void resolveActiveAlertsForWebsite(Long websiteId) {
+        List<Alert> activeAlerts = alertRepository.findByWebsiteIdAndStatusNot(websiteId, "RESOLVED");
+        for (Alert alert : activeAlerts) {
+            alert.setStatus("RESOLVED");
+            alert.setResolvedAt(LocalDateTime.now());
+            alertRepository.save(alert);
+            log.info("Resolved alert ID {} because website ID {} was removed from monitoring.",
+                    alert.getId(), websiteId);
+        }
+    }
+
+    @Transactional
     public List<Alert> getAllAlerts() {
+        resolveOrphanedAlerts();
         return alertRepository.findAllByOrderByCreatedAtDesc();
     }
 
@@ -157,7 +176,25 @@ public class AlertService {
         return alertRepository.save(alert);
     }
 
+    @Transactional
     public long countActiveAlerts() {
+        resolveOrphanedAlerts();
         return alertRepository.countByStatus("PENDING") + alertRepository.countByStatus("SENT");
+    }
+
+    private void resolveOrphanedAlerts() {
+        Set<Long> monitoredWebsiteIds = websiteRepository.findAll().stream()
+                .map(Website::getId)
+                .collect(Collectors.toSet());
+        List<Alert> unresolvedAlerts = alertRepository.findByStatusNot("RESOLVED");
+        for (Alert alert : unresolvedAlerts) {
+            if (!monitoredWebsiteIds.contains(alert.getWebsiteId())) {
+                alert.setStatus("RESOLVED");
+                alert.setResolvedAt(LocalDateTime.now());
+                alertRepository.save(alert);
+                log.info("Resolved orphaned alert ID {} for deleted website ID {}.",
+                        alert.getId(), alert.getWebsiteId());
+            }
+        }
     }
 }

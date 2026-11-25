@@ -9,6 +9,8 @@ import java.util.List;
 @Repository
 public interface AlertRepository extends JpaRepository<Alert, Long> {
     List<Alert> findByWebsiteIdOrderByCreatedAtDesc(Long websiteId);
+    List<Alert> findByWebsiteIdAndStatusNot(Long websiteId, String status);
+    List<Alert> findByStatusNot(String status);
     List<Alert> findAllByOrderByCreatedAtDesc();
     List<Alert> findByStatusOrderByCreatedAtDesc(String status);
     List<Alert> findByWebsiteIdAndAlertTypeAndStatusNot(Long websiteId, String alertType, String status);

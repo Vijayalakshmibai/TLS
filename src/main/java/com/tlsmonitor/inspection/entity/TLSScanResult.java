@@ -30,6 +30,14 @@ public class TLSScanResult {
     private boolean hostnameValid;
     private boolean trustChainValid;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "hostname_validation_status", length = 20)
+    private ValidationStatus hostnameValidationStatus = ValidationStatus.NOT_EVALUATED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "trust_validation_status", length = 20)
+    private ValidationStatus trustValidationStatus = ValidationStatus.NOT_EVALUATED;
+
     @Column(columnDefinition = "TEXT")
     private String trustError;
 
@@ -112,19 +120,47 @@ public class TLSScanResult {
     }
 
     public boolean isHostnameValid() {
-        return hostnameValid;
+        return getHostnameValidationStatus() == ValidationStatus.VALID;
     }
 
     public void setHostnameValid(boolean hostnameValid) {
         this.hostnameValid = hostnameValid;
+        this.hostnameValidationStatus = hostnameValid ? ValidationStatus.VALID : ValidationStatus.INVALID;
+    }
+
+    public ValidationStatus getHostnameValidationStatus() {
+        return hostnameValidationStatus != null
+                ? hostnameValidationStatus
+                : (hostnameValid ? ValidationStatus.VALID : ValidationStatus.NOT_EVALUATED);
+    }
+
+    public void setHostnameValidationStatus(ValidationStatus hostnameValidationStatus) {
+        this.hostnameValidationStatus = hostnameValidationStatus != null
+                ? hostnameValidationStatus
+                : ValidationStatus.NOT_EVALUATED;
+        this.hostnameValid = this.hostnameValidationStatus == ValidationStatus.VALID;
     }
 
     public boolean isTrustChainValid() {
-        return trustChainValid;
+        return getTrustValidationStatus() == ValidationStatus.VALID;
     }
 
     public void setTrustChainValid(boolean trustChainValid) {
         this.trustChainValid = trustChainValid;
+        this.trustValidationStatus = trustChainValid ? ValidationStatus.VALID : ValidationStatus.INVALID;
+    }
+
+    public ValidationStatus getTrustValidationStatus() {
+        return trustValidationStatus != null
+                ? trustValidationStatus
+                : (trustChainValid ? ValidationStatus.VALID : ValidationStatus.NOT_EVALUATED);
+    }
+
+    public void setTrustValidationStatus(ValidationStatus trustValidationStatus) {
+        this.trustValidationStatus = trustValidationStatus != null
+                ? trustValidationStatus
+                : ValidationStatus.NOT_EVALUATED;
+        this.trustChainValid = this.trustValidationStatus == ValidationStatus.VALID;
     }
 
     public String getTrustError() {

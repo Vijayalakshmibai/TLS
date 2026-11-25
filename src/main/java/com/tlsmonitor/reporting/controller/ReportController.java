@@ -15,7 +15,7 @@ import com.tlsmonitor.risk.entity.RiskAssessment;
 import com.tlsmonitor.risk.entity.SecurityFinding;
 import com.tlsmonitor.risk.repository.RiskAssessmentRepository;
 import com.tlsmonitor.risk.repository.SecurityFindingRepository;
-import com.tlsmonitor.risk.service.RiskAnalyzer;
+import com.tlsmonitor.risk.service.RiskReportResolver;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +35,7 @@ public class ReportController {
     private final AlertService alertService;
     private final PdfReportService pdfReportService;
     private final ExcelReportService excelReportService;
+    private final RiskReportResolver riskReportResolver;
 
     public ReportController(WebsiteService websiteService,
                             TLSScanResultRepository scanRepository,
@@ -43,7 +44,8 @@ public class ReportController {
                             SecurityFindingRepository findingRepository,
                             AlertService alertService,
                             PdfReportService pdfReportService,
-                            ExcelReportService excelReportService) {
+                            ExcelReportService excelReportService,
+                            RiskReportResolver riskReportResolver) {
         this.websiteService = websiteService;
         this.scanRepository = scanRepository;
         this.certRepository = certRepository;
@@ -52,6 +54,7 @@ public class ReportController {
         this.alertService = alertService;
         this.pdfReportService = pdfReportService;
         this.excelReportService = excelReportService;
+        this.riskReportResolver = riskReportResolver;
     }
 
     @GetMapping("/reports/{websiteId}/pdf")
@@ -60,10 +63,14 @@ public class ReportController {
             @RequestParam(name = "inline", defaultValue = "false") boolean inline) throws Exception {
 
         Website website = websiteService.getWebsiteById(websiteId);
-        TLSScanResult scan = scanRepository.findFirstByWebsiteIdOrderByScannedAtDesc(websiteId).orElse(null);
-        CertificateDetails cert = certRepository.findFirstByWebsiteIdOrderByIdDesc(websiteId).orElse(null);
-        RiskAssessment risk = riskRepository.findFirstByWebsiteIdOrderByAssessedAtDesc(websiteId).orElse(null);
-        List<SecurityFinding> findings = scan != null ? findingRepository.findByScanId(scan.getId()) : List.of();
+        // Identical resolution to the Risk Analysis page: latest scan -> assessment covering it
+        // (recomputed fresh when stale) -> findings persisted for that scan.
+        RiskReportResolver.ResolvedRisk resolved = riskReportResolver.resolve(websiteId).orElse(null);
+        TLSScanResult scan = (resolved != null) ? resolved.scan() : null;
+        CertificateDetails cert = (resolved != null) ? resolved.certificate()
+                : certRepository.findFirstByWebsiteIdOrderByIdDesc(websiteId).orElse(null);
+        RiskAssessment risk = (resolved != null) ? resolved.assessment() : null;
+        List<SecurityFinding> findings = (resolved != null) ? resolved.findings() : List.of();
 
         byte[] pdfBytes = pdfReportService.generateWebsiteReport(website, scan, cert, risk, findings);
 

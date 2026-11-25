@@ -2,6 +2,7 @@ package com.tlsmonitor.inspection.tls;
 
 import com.tlsmonitor.inspection.entity.CertificateDetails;
 import com.tlsmonitor.inspection.entity.TLSScanResult;
+import com.tlsmonitor.inspection.entity.ValidationStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -10,7 +11,10 @@ import javax.net.ssl.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.security.cert.CertPathBuilderException;
+import java.security.cert.CertPathValidatorException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -72,12 +76,14 @@ public class TLSInspector {
             return new InspectionOutcome(scanResult, null);
         }
 
-        // 1. Primary Handshake using Default JVM TrustStore (Validates Trust & Hostname)
-        boolean trustValid = false;
-        boolean hostnameValid = false;
+        // Validate the chain first; hostname validation is performed separately from the captured leaf.
+        ValidationStatus trustStatus = ValidationStatus.NOT_EVALUATED;
+        ValidationStatus hostnameStatus = ValidationStatus.NOT_EVALUATED;
         String trustErrorMsg = null;
         SSLSession activeSession = null;
         X509Certificate[] certChain = null;
+        boolean standardHandshakeCompleted = false;
+        boolean captureHandshakeCompleted = false;
 
         try {
             SSLContext defaultContext = SSLContext.getDefault();
@@ -87,16 +93,10 @@ public class TLSInspector {
                 plainSocket.connect(new InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
                 try (SSLSocket sslSocket = (SSLSocket) factory.createSocket(plainSocket, domain, port, true)) {
                     sslSocket.setSoTimeout(SO_TIMEOUT_MS);
-
-                    // Enable standard HTTPS endpoint identification for hostname verification
-                    SSLParameters params = sslSocket.getSSLParameters();
-                    params.setEndpointIdentificationAlgorithm("HTTPS");
-                    sslSocket.setSSLParameters(params);
-
                     sslSocket.startHandshake();
                     activeSession = sslSocket.getSession();
-                    trustValid = true;
-                    hostnameValid = true;
+                    standardHandshakeCompleted = true;
+                    trustStatus = ValidationStatus.VALID;
 
                     Certificate[] peerCerts = activeSession.getPeerCertificates();
                     if (peerCerts != null && peerCerts.length > 0) {
@@ -108,18 +108,17 @@ public class TLSInspector {
                 }
             }
         } catch (SSLException e) {
-            trustValid = false;
             trustErrorMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            log.warn("Trust verification failed for {}: {}", domain, trustErrorMsg);
+            if (isTrustValidationFailure(e)) {
+                trustStatus = ValidationStatus.INVALID;
+            }
+            log.warn("TLS handshake validation failed for {}: {}", domain, trustErrorMsg);
         } catch (Exception e) {
-            scanResult.setConnectionStatus("CONNECTION_FAILED");
-            scanResult.setTrustError("Connection failed: " + e.getMessage());
-            scanResult.setResponseTimeMs(System.currentTimeMillis() - startTime);
-            return new InspectionOutcome(scanResult, null);
+            trustErrorMsg = "Connection failed: " + e.getMessage();
+            log.warn("TLS connection failed for {}: {}", domain, e.getMessage());
         }
 
-        // 2. If trust validation failed or socket threw SSLHandshakeException, connect with captive inspector
-        // to retrieve the untrusted/self-signed/expired peer certificate chain so we can inspect and report it!
+        // Retry with a capturing trust manager so a rejected certificate can still be inspected.
         if (certChain == null || certChain.length == 0) {
             try {
                 final X509Certificate[][] captured = new X509Certificate[1][];
@@ -128,7 +127,7 @@ public class TLSInspector {
                     public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
                     public void checkClientTrusted(X509Certificate[] chain, String authType) {}
                     public void checkServerTrusted(X509Certificate[] chain, String authType) {
-                        captured[0] = chain;
+                        captured[0] = chain != null ? chain.clone() : null;
                     }
                 }}, new java.security.SecureRandom());
 
@@ -136,19 +135,24 @@ public class TLSInspector {
                     plainSocket.connect(new InetSocketAddress(addr, port), CONNECT_TIMEOUT_MS);
                     try (SSLSocket sslSocket = (SSLSocket) captiveContext.getSocketFactory().createSocket(plainSocket, domain, port, true)) {
                         sslSocket.setSoTimeout(SO_TIMEOUT_MS);
-                        sslSocket.startHandshake();
-                        if (activeSession == null) {
-                            activeSession = sslSocket.getSession();
-                        }
-                        if (captured[0] != null && captured[0].length > 0) {
-                            certChain = captured[0];
-                        } else {
-                            Certificate[] peerCerts = sslSocket.getSession().getPeerCertificates();
-                            if (peerCerts != null) {
-                                certChain = new X509Certificate[peerCerts.length];
-                                for (int i = 0; i < peerCerts.length; i++) {
-                                    certChain[i] = (X509Certificate) peerCerts[i];
+                        try {
+                            sslSocket.startHandshake();
+                            captureHandshakeCompleted = true;
+                            if (activeSession == null) {
+                                activeSession = sslSocket.getSession();
+                            }
+                            if (captured[0] == null || captured[0].length == 0) {
+                                Certificate[] peerCerts = sslSocket.getSession().getPeerCertificates();
+                                if (peerCerts != null) {
+                                    captured[0] = new X509Certificate[peerCerts.length];
+                                    for (int i = 0; i < peerCerts.length; i++) {
+                                        captured[0][i] = (X509Certificate) peerCerts[i];
+                                    }
                                 }
+                            }
+                        } finally {
+                            if (captured[0] != null && captured[0].length > 0) {
+                                certChain = captured[0];
                             }
                         }
                     }
@@ -158,19 +162,27 @@ public class TLSInspector {
             }
         }
 
-        // Check Hostname verification independently if not already established
-        if (!hostnameValid && certChain != null && certChain.length > 0) {
-            hostnameValid = verifyHostname(domain, certChain[0]);
+        if (certChain == null || certChain.length == 0) {
+            scanResult.setConnectionStatus("CONNECTION_FAILED");
+            scanResult.setTrustError(trustErrorMsg != null ? trustErrorMsg : "No peer certificate was received.");
+            scanResult.setTrustValidationStatus(ValidationStatus.NOT_EVALUATED);
+            scanResult.setHostnameValidationStatus(ValidationStatus.NOT_EVALUATED);
+            scanResult.setResponseTimeMs(System.currentTimeMillis() - startTime);
+            return new InspectionOutcome(scanResult, null);
         }
 
-        scanResult.setTrustChainValid(trustValid);
-        scanResult.setHostnameValid(hostnameValid);
+        hostnameStatus = verifyHostname(domain, certChain[0])
+                ? ValidationStatus.VALID
+                : ValidationStatus.INVALID;
+        scanResult.setTrustValidationStatus(trustStatus);
+        scanResult.setHostnameValidationStatus(hostnameStatus);
         scanResult.setTrustError(trustErrorMsg);
 
         if (activeSession != null) {
             scanResult.setTlsVersion(activeSession.getProtocol());
             scanResult.setCipherSuite(activeSession.getCipherSuite());
-            scanResult.setConnectionStatus("SUCCESS");
+            scanResult.setConnectionStatus(
+                    standardHandshakeCompleted || captureHandshakeCompleted ? "SUCCESS" : "HANDSHAKE_FAILED");
         } else {
             scanResult.setConnectionStatus("HANDSHAKE_FAILED");
         }
@@ -202,6 +214,17 @@ public class TLSInspector {
 
         scanResult.setResponseTimeMs(System.currentTimeMillis() - startTime);
         return new InspectionOutcome(scanResult, certDetails);
+    }
+
+    private boolean isTrustValidationFailure(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof CertificateException
+                    || cause instanceof CertPathBuilderException
+                    || cause instanceof CertPathValidatorException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean verifyHostname(String domain, X509Certificate cert) {
