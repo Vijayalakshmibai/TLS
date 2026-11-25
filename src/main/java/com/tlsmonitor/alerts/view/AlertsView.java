@@ -137,10 +137,10 @@ public class AlertsView extends VerticalLayout implements BeforeEnterObserver {
                 try {
                     boolean sent = alertService.sendAlertPdfReport(alert.getId());
                     if (sent) {
-                        Notification.show("PDF security report sent successfully via Gmail SMTP.", 4000, Notification.Position.TOP_CENTER)
+                        Notification.show("PDF security report accepted by the Gmail relay.", 4000, Notification.Position.TOP_CENTER)
                                 .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                     } else {
-                        Notification.show("Failed to send PDF report. Verify MAIL_USERNAME and MAIL_APP_PASSWORD.", 5000, Notification.Position.TOP_CENTER)
+                        Notification.show("PDF report delivery failed. Check Railway Deploy Logs for the Gmail relay response.", 5000, Notification.Position.TOP_CENTER)
                                 .addThemeVariants(NotificationVariant.LUMO_ERROR);
                     }
                 } catch (Exception ex) {
